@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "./generated/prisma-db-client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) @map("_id")
+  username  String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+}
+
+// enum TableType {
+//   TABLE
+//   COLLECTION
+// }
+
+enum TypeDatabase {
+  mongodb
+  mysql
+  pg
+}
+
+enum RelationType {
+  ONE_TO_ONE
+  ONE_TO_MANY
+  MANY_TO_MANY
+}
+
+enum FieldType {
+  STRING
+  INT
+  FLOAT
+  BOOLEAN
+  DATE
+  DATETIME
+  JSON
+  // Tambahkan tipe data lain sesuai kebutuhan
+}
+
+model Database {
+  id        String       @id @default(uuid()) @map("_id")
+  name      String
+  type      TypeDatabase
+  host      String
+  username  String
+  password  String
+  port      Int
+  createdAt DateTime     @default(now())
+  tables    Table[]
+}
+
+model Table {
+  id         String     @id @default(uuid()) @map("_id")
+  name       String
+  databaseId String     @map("database_id")
+  // type       TableType
+  fields     Field[]
+  database   Database   @relation(fields: [databaseId], references: [id])
+  relationsA Relation[] @relation("RelationTableA")
+  relationsB Relation[] @relation("RelationTableB")
+  createdAt  DateTime   @default(now())
+}
+
+model Field {
+  id        String    @id @default(uuid()) @map("_id")
+  name      String
+  isPrimary Boolean   @default(false)
+  isNull    Boolean   @default(false)
+  type      FieldType
+  tableId   String    @map("table_id")
+  
+  relationsA Relation[] @relation("RelationFieldA")
+  relationsB Relation[] @relation("RelationFieldB")
+
+  table     Table    @relation(fields: [tableId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Relation {
+  id       String @id @default(uuid()) @map("_id")
+  tableAId String @map("table_a_id")
+  tableBId String @map("table_b_id")
+  fieldAId String @map("field_a_id")
+  fieldBId String @map("field_b_id")
+
+  type RelationType
+
+  tableA    Table    @relation("RelationTableA", fields: [tableAId], references: [id])
+  tableB    Table    @relation("RelationTableB", fields: [tableBId], references: [id])
+  
+  fieldA    Field    @relation("RelationFieldA", fields: [fieldAId], references: [id])
+  fieldB    Field    @relation("RelationFieldB", fields: [fieldBId], references: [id])
+  createdAt DateTime @default(now())
+}
