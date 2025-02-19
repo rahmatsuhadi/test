@@ -4,7 +4,7 @@ import {
   MysqlConnection,
 } from "@/app/v2/schema/connection";
 import prisma from "@/lib/db";
-import { Database, Field, FieldType } from "@prisma/client";
+import { Database,} from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -25,9 +25,9 @@ export async function GET(
     filters[key] = value;
   });
 
-  const where = {
-    table: { databaseId, name: tableName },
-  };
+  // const where = {
+  //   table: { databaseId, name: tableName },
+  // };
 
   try {
     const { connection, database } = await connectDatabase(databaseId);
@@ -61,10 +61,17 @@ export async function GET(
         skip,
       });
     }
-  } catch (error: any) {
-    return Response.json({
-      message: error.message,
-    });
+  } catch (error: unknown) {
+    if(error instanceof Error){
+      return Response.json({
+        message: error.message,
+      });
+    }
+    else{
+      return Response.json({
+        message: "Internal Server Error"
+      },{status: 500})
+    }
   }
 }
 
@@ -91,7 +98,7 @@ export const getMySQLDataByTableName = async (
   let filterConditions = "";
   if (filters) {
     filterConditions = Object.entries(filters)
-      .filter(([key, value]) => !!columnsData.find((col) => col.name == key))
+      .filter(([key, i]) => !!i && !!columnsData.find((col) => col.name == key))
       .map(([key, value]) => `${key} = '${value}'`) // Menyesuaikan dengan kondisi yang diinginkan
       .join(" AND ");
   }
@@ -161,7 +168,7 @@ export async function POST(
 
     if(database.type=="mysql"){
       
-      const data =  await insertRecordMysql(connection as MysqlConnection, tableName,req)
+      await insertRecordMysql(connection as MysqlConnection, tableName,req)
       
       return Response.json(req);
     }
@@ -172,14 +179,21 @@ export async function POST(
     }
     
 
-  } catch (error: any) {
-    return NextResponse.json(
-      { message: error?.message ?? "Internal Server Error" },
-      { status: 400 }
-    );
-  }
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+        return NextResponse.json(
+            { message: error.message },
+            { status: 400 }
+        );
+    } else {
+        return NextResponse.json(
+            { message: "Internal Server Error" },
+            { status: 400 }
+        );
+    }
 }
-
+}
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
 const insertRecordMysql = async (connection: MysqlConnection, name: string, body:any) => {
   // Menghindari SQL injection dengan validasi nama tabe
   // l
@@ -194,7 +208,7 @@ const insertRecordMysql = async (connection: MysqlConnection, name: string, body
   return result;
 };
 
-
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
 const insertRecordMongoDD = async (connection: MongoConnection,database:Database, name: string, body:any) => {
   
   const manager = await connection.db(database.name)

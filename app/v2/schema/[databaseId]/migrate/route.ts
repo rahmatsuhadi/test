@@ -7,13 +7,13 @@ import {
 } from "../../connection";
 import { IField } from "@/types/mysql-type";
 import { getColumnTypeMysql } from "@/lib/mysql/filed-getter";
-import { Database, Field } from "@prisma/client";
+import { Database, Field, Table } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ databaseId: string }> }
 ) {
-  const searchParams = request.nextUrl.searchParams;
+  // const searchParams = request.nextUrl.searchParams;
   const databaseId = (await params).databaseId;
 
   const data = await prisma.database.findUnique({
@@ -38,7 +38,9 @@ export const getMySQLTables = async (connection: MysqlConnection) => {
   const [tables] = await connection.query("SHOW TABLES");
 
   const tableDetails = await Promise.all(
+    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
     tables.map(async (table: any) => {
+      
       const tableName = table[`Tables_in_${connection.getDatabaseName()}`];
       // const [columns] = await connection.query(`DESCRIBE ${tableName}`);
       return { name: tableName };
@@ -154,11 +156,11 @@ export const migrateDatabaseMysql = async (
   const tablesDatabase = await getMySQLTables(connection);
 
   // tablesDatabase.forEach(async (tb) => {
-  let resultsTable = [];
-  let resultsColumn:({ table: { name: string } } & Field)[] = [];
+  const resultsTable:Table[] = [];
+  const resultsColumn:({ table: { name: string } } & Field)[] = [];
 
   for (const tb of tablesDatabase) {
-    let tableId: string;
+    // let tableId: string;
 
     const res = await prisma.table.create({
       data: {
@@ -261,6 +263,7 @@ export const migrateDatabaseMongo = async (
 
       const collection = await mongodb.collection(table.name);
       const one = await collection.findOne();
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
       for (const field of Object.keys(one as any)) {
         await prisma.field.create({
           data: {
@@ -275,5 +278,7 @@ export const migrateDatabaseMongo = async (
     }
 
     // console.log(tables);
-  } catch (error) {}
+  } catch (error) {
+    console.log(error)
+  }
 };

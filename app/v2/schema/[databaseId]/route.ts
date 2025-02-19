@@ -3,10 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
   connectDatabase,
-  getDatabaseById,
   MysqlConnection,
 } from "../connection";
-import { Sequelize } from "sequelize";
 import { schemaField } from "./[tableName]/route";
 import { Field } from "@prisma/client";
 
@@ -85,7 +83,7 @@ export async function POST(
 
 
     return Response.json(result);
-  } catch (error:any) {
+  } catch (error:unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -94,10 +92,12 @@ export async function POST(
         { status: 400 }
       );
     }
-    return NextResponse.json(
-      { message: error?.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    if(error instanceof Error){
+      return NextResponse.json(
+        { message: error?.message ?? "Internal Server Error" },
+        { status: 500 }
+      );
+    }
   }
 }
 
@@ -106,8 +106,8 @@ export const getMySQLTablesByName = async (
   name: string
 ) => {
   const [tables] = await connection.query("SHOW TABLES FROM " + name);
-
   const tableDetails = await Promise.all(
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
     tables.map(async (table: any) => {
       const tableName = table[`Tables_in_${connection.getDatabaseName()}`];
       const [columns] = await connection.query(`DESCRIBE ${tableName}`);

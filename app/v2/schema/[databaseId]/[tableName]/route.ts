@@ -1,5 +1,5 @@
 import prisma from "@/lib/db";
-import { Field, FieldType } from "@prisma/client";
+import { Field } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDatabase, MysqlConnection } from "../../connection";
@@ -119,7 +119,7 @@ export async function POST(
     });
 
     return Response.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.log(error)
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -129,7 +129,9 @@ export async function POST(
         { status: 400 }
       );
     }
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    else{
+      return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    }
   }
 }
 
@@ -216,7 +218,7 @@ export async function DELETE(
     });
 
     return Response.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -226,10 +228,13 @@ export async function DELETE(
         { status: 400 }
       );
     }
-    return NextResponse.json(
-      { message: error?.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    else if(error instanceof Error){
+      return NextResponse.json(
+        { message: error?.message ?? "Internal Server Error" },
+        { status: 500 }
+      );
+
+    }
   }
 }
 

@@ -1,13 +1,13 @@
 import prisma from "@/lib/db";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ databaseId: string }> }){
     
-  const searchParams = request.nextUrl.searchParams;
-  const limit = Number(searchParams.get("limit") || 20);
-  const skip = Number(searchParams.get("skip") || 0);
+  // const searchParams = request.nextUrl.searchParams;
+  // const limit = Number(searchParams.get("limit") || 20);
+  // const skip = Number(searchParams.get("skip") || 0);
   const databaseId = (await params).databaseId
 
 

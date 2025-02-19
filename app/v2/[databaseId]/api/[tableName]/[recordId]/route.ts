@@ -1,12 +1,11 @@
 import { connectDatabase, MongoConnection, MysqlConnection } from "@/app/v2/schema/connection";
 import prisma from "@/lib/db";
-import { Database, Field, FieldType, Table } from "@prisma/client";
+import { Database, Field, Table } from "@prisma/client";
 import { ObjectId } from "mongodb";
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { NextRequest } from "next/server";
 
 export async function GET(
-  request: NextRequest,
+  // request: NextRequest,
   {
     params,
   }: {
@@ -36,7 +35,6 @@ export async function GET(
     if (database.type == "mysql") {
       const data = await getRecordByPrimaryKey(
         connection as MysqlConnection,
-        databaseId,
         table,
         recordId
       );
@@ -60,19 +58,24 @@ export async function GET(
       return Response.json(data)
 
     }
-  } catch (error: any) {
-    return Response.json({
-      message: error.message,
-    });
+  } catch (error: unknown) {
+    if(error instanceof Error){
+      return Response.json({
+        message: error.message,
+      });
+    }
+    else{
+      return Response.json({message: "Internal Server Error"},{status:500})
+    }
   }
 }
 
 export const getRecordByPrimaryKey = async (
   connection: MysqlConnection,
-  databaseId: string,
   table: Table & { fields: Field[] },
   recordId: string
-) => {
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+): Promise<any> => {
   if (!table) {
     throw new Error("Table not found");
   }
@@ -91,6 +94,8 @@ export const getRecordByPrimaryKey = async (
   } where ${table.name}.${primary.name} = '${recordId}';`;
 
   const [records] = await connection.query(dataQuery);
+
+
   return records;
 };
 
@@ -134,7 +139,7 @@ export const getRecordByIdMongodb = async (
 
 
 export async function DELETE(
-  request: NextRequest,
+  // request: NextRequest,
   {
     params,
   }: {
@@ -188,10 +193,17 @@ export async function DELETE(
       return Response.json({message: "Record " + recordId + " deleted"});
 
     }
-  } catch (error: any) {
-    return Response.json({
-      message: error.message,
-    });
+  } catch (error: unknown) {
+    if(error instanceof Error){
+      return Response.json({
+        message: error.message,
+      });
+    }
+    else{
+       return Response.json({
+        message: "Internal Server Erro"
+       },{status:500})
+    }
   }
 }
 
@@ -212,7 +224,7 @@ const deleteRecordMysqlByPrimary = async(
     throw new Error(`This Table '${table.name}' Not have Primary Key`);
   }
 
-  const fields = columnsData.map((val) => val.name).join("`, `");
+  // const fields = columnsData.map((val) => val.name).join("`, `");
 
   const dataQuery = `DELETE FROM ${connection.getDatabaseName()}.${
     table.name

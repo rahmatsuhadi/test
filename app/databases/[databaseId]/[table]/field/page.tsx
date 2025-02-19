@@ -3,9 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
 import TableListingColumnPage from "@/features/column/components/list";
-import TableListingPage from "@/features/tables/components/list";
 import { Plus } from "lucide-react";
-import { Suspense } from "react";
 
 export default async function ListColumn({
   params,

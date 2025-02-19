@@ -5,6 +5,7 @@ import {
   fetchTables,
   findColumnAll,
   findColumnById,
+  findTableByName,
   findTablesAll,
 } from "@/service/api";
 import { Table } from "@prisma/client";
@@ -27,6 +28,6 @@ export const useColumnByTableName = (
 export const useColumnData = (db:string, tableName:string) =>{
     return useQuery({
         queryKey: ['column', db, tableName],
-        queryFn: ()=> fetchColumnByTableName(db, tableName)
+        queryFn: ()=> findTableByName(db, tableName)
     })
 }

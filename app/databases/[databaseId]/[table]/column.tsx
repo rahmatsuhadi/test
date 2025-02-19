@@ -9,8 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { Cell, CellContext, ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { Cell, ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,7 +31,6 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -54,7 +53,7 @@ const formSchema = z.object({
 
 export const HeaderColumn = ({
   title,
-  column,
+  // column,
 }: {
   title: string;
   column: ColumnDef<Field>;
@@ -202,6 +201,7 @@ export const HeaderAddColumn = () => {
 };
 
 export interface EditableCellProps {
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   cell: Cell<any, unknown>;
   updateMyData: (rowIndex: number, columnId: string, value: string) => void;
 }

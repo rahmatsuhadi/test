@@ -21,14 +21,14 @@ import { useEffect } from "react"
 
     const params = useParams();
     const databaseId = params?.db
-    const {data,isLoading} = useTables(databaseId as string)
+    const {data} = useTables(databaseId as string)
     const router = useRouter()
 
     useEffect(() =>{
       if(!params?.table && data?.data && data.data.length>0){
         router.replace("/databases/" + databaseId +"/tables/" + data.data[0].name)
       }
-    },[params?.table,data])
+    },[params?.table, databaseId, data?.data, router])
 
 
     return (

@@ -1,9 +1,8 @@
 import PageContainer from "@/components/layout/page-containter";
-import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
+import { CreateTableDialog } from "@/features/tables/components/create-table-dialog";
 import TableListingPage from "@/features/tables/components/list";
-import { Plus } from "lucide-react";
 import { Suspense } from "react";
 
 export default async function DatabasesDashboard({
@@ -18,9 +17,7 @@ export default async function DatabasesDashboard({
       <div className="flex flex-1 flex-col space-y-4">
         <div className="flex flex-1 items-center justify-between">
           <Heading title="Tables" description="List Tables in Database " />
-          <Button>
-            New Table <Plus />
-          </Button>
+          <CreateTableDialog/>
         </div>
         <Separator />
 

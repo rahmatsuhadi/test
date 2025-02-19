@@ -4,7 +4,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
@@ -16,35 +15,29 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { useTables } from "@/hooks/useTable";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { DatabaseSwitcher } from "./database-switcher";
 import {
-  ArrowBigLeftDash,
-  AudioWaveform,
   ChevronRight,
   ChevronsUpDown,
-  Command,
   GalleryVerticalEnd,
   LayoutDashboard,
   Table,
 } from "lucide-react";
-import { navItems } from "@/constants/data";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../ui/collapsible";
-import { Icons } from "../icons";
 
 export function AppSidebar() {
   const params = useParams();
   const databaseId = params?.databaseId;
   const pathname = usePathname();
 
-  const { data, isLoading } = useTables(databaseId as string);
-  const router = useRouter();
+  const { data } = useTables(databaseId as string);
+  // const router = useRouter();
 
   // useEffect(() => {
   //   if (!params?.table && data?.tables && data.tables.length > 0) {

@@ -1,5 +1,4 @@
 import prisma from "@/lib/db";
-import { Field, FieldType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDatabase, MysqlConnection } from "../../../connection";
@@ -12,17 +11,17 @@ export const schemaField = z.object({
 });
 
 export async function GET(
-  request: NextRequest,
+  // request: NextRequest,
   { params }: { params: Promise<{ databaseId: string; tableName: string, fieldId:string }> }
 ) {
-  const databaseId = (await params).databaseId;
-  const tableName = (await params).tableName;
+  // const databaseId = (await params).databaseId;
+  // const tableName = (await params).tableName;
   const fieldId = (await params).fieldId;
 
-  const where = {
-    table: { databaseId, name: tableName},
-    id:fieldId 
-  };
+  // const where = {
+  //   table: { databaseId, name: tableName},
+  //   id:fieldId 
+  // };
 
   const data = await prisma.field.findFirst({
     where:{
@@ -72,7 +71,7 @@ export async function DELETE(
     });
 
     return Response.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -82,10 +81,13 @@ export async function DELETE(
         { status: 400 }
       );
     }
-    return NextResponse.json(
-      { message: error?.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    else if(error instanceof Error){
+
+      return NextResponse.json(
+        { message: error?.message ?? "Internal Server Error" },
+        { status: 500 }
+      );
+    }
   }
 }
 

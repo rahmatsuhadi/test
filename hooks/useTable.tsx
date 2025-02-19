@@ -1,5 +1,5 @@
 "use client"    
-import { fetchColumnByTableName, fetchDataByTableName, fetchTables, findTablesAll } from "@/service/api"
+import { fetchColumnByTableName, fetchDataByTableName, fetchTables, findAll, findTablesAll } from "@/service/api"
 import { Table } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query"
 
@@ -18,6 +18,6 @@ export const useTables = (database:string) =>{
 export const useData = (db:string, tableName:string) =>{
     return useQuery({
         queryKey: ['data', db, tableName],
-        queryFn: ()=> fetchDataByTableName(db, tableName)
+        queryFn: ()=> findAll(db, tableName)
     })
 }

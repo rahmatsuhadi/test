@@ -2,7 +2,7 @@
 
 import { useData } from "@/hooks/useTable";
 
-import { Cell, CellContext, ColumnDef } from "@tanstack/react-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "../ui/checkbox";
 import {
   DropdownMenu,
@@ -26,6 +26,10 @@ import { Label } from "../ui/label";
 import { useEffect, useState } from "react";
 import { Separator } from "../ui/separator";
 
+export  interface RowData {
+  [key: string]: unknown; // Dynamic properties
+}
+
 export default function TableContainer({
   db,
   table,
@@ -34,7 +38,6 @@ export default function TableContainer({
   db: string;
 }) {
   const { data: column } = useColumnData(db, table);
-
   const { data } = useData(db, table);
 
   // const defaultColumn: ColumnDef<any>[] = [
@@ -60,11 +63,12 @@ export default function TableContainer({
   //   },
   // ];
 
-  const columnCustom = column
-    ? column?.map((item): ColumnDef<Field[]> => {
+  const columnCustom =
+  column
+    ? column.data?.map((item): ColumnDef<Field[]> => {
         return {
           accessorKey: item.name,
-          header: ({ column, table }) => {
+          header: ({ column }) => {
             return <HeaderColumn column={column} title={item.name} />;
           },
           cell: ({ cell }) => {
@@ -72,8 +76,8 @@ export default function TableContainer({
           },
         };
       })
-    : [];
-
+    : []
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const selectColumm: ColumnDef<any> = {
     id: "select",
     header: ({ table }) => (
@@ -94,14 +98,13 @@ export default function TableContainer({
       />
     ),
   };
-
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const actionColumn: ColumnDef<any> = {
     id: "actions",
-    header(props) {
+    header() {
       return <HeaderAddColumn />;
     },
-    cell: ({ row }) => {
-      const payment = row.original;
+    cell: ({  }) => {
 
       return (
         <DropdownMenu>
@@ -144,9 +147,9 @@ export default function TableContainer({
   useEffect(() => {
     // Mendapatkan hostname saat komponen di-mount
     const protocol = window.location.protocol;
-    setHostname(protocol + "://" + window.location.host);
+    setHostname(protocol + "//" + window.location.host);
   }, []); // Array kosong berarti efek hanya dijalankan sekali saat komponen di-mount
-
+  console.log(data)
   return (
     <>
       {listrequest.map((item, i) => {
@@ -176,7 +179,7 @@ export default function TableContainer({
       <div className="w-full">
         <DataTable
           columns={[selectColumm, ...columnCustom, actionColumn]}
-          data={data ?? []}
+          data={data?.data ?? []}
         />
       </div>
     </>

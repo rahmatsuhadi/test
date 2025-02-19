@@ -9,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -67,7 +66,7 @@ export function DatabaseSwitcher({
             </DropdownMenuLabel>
             {databases.map((team, index) => (
               <DropdownMenuItem
-                key={team.name}
+                key={index}
                 onClick={() => setActiveDatabase(team)}
                 className="gap-2 p-2"
               >
