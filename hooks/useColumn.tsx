@@ -1,8 +1,5 @@
 "use client";
 import {
-  fetchColumnByTableName,
-  fetchDataByTableName,
-  fetchTables,
   findColumnAll,
   findColumnById,
   findTableByName,

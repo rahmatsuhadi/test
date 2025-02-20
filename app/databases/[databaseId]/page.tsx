@@ -17,7 +17,7 @@ export default async function DatabasesDashboard({
       <div className="flex flex-1 flex-col space-y-4">
         <div className="flex flex-1 items-center justify-between">
           <Heading title="Tables" description="List Tables in Database " />
-          <CreateTableDialog/>
+          <CreateTableDialog databaseId={databaseId}/>
         </div>
         <Separator />
 

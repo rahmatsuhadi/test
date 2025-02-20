@@ -1,11 +1,11 @@
-import { connectDatabase, MongoConnection, MysqlConnection } from "@/app/v2/schema/connection";
+import { connectDatabase, MongoConnection, MysqlConnection } from "@/service/connection";
 import prisma from "@/lib/db";
 import { Database, Field, Table } from "@prisma/client";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 
 export async function GET(
-  // request: NextRequest,
+  {}: NextRequest,
   {
     params,
   }: {
@@ -139,7 +139,7 @@ export const getRecordByIdMongodb = async (
 
 
 export async function DELETE(
-  // request: NextRequest,
+ {}: NextRequest,
   {
     params,
   }: {
@@ -150,10 +150,10 @@ export async function DELETE(
     }>;
   }
 ) {
-  const databaseId = (await params).databaseId;
+  console.log("hai", params)
+  const databaseId = (await params)?.databaseId;
   const tableName = (await params).tableName;
   const recordId = (await params).recordId;
-
   try {
     const { database, connection } = await connectDatabase(databaseId);
 

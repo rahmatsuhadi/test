@@ -1,12 +1,12 @@
 import prisma from "@/lib/db";
-import { Field } from "@prisma/client";
+import { Database, Field } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { connectDatabase, MysqlConnection } from "../../connection";
+import { connectDatabase, MongoConnection, MysqlConnection } from "../../../../../service/connection";
 
 export const schemaField = z.object({
   name: z.string(),
-  type: z.enum(["INT", "STRING", "BOOLEAN"]),
+  type: z.enum([ "STRING", "BOOLEAN", "INT"]),
   isNull: z.boolean(),
   isPrimary: z.boolean(),
 });
@@ -29,6 +29,7 @@ export async function GET(
     take: limit,
     skip: skip,
     include:{
+      table:{select:{id:true}},
       relationsA: {
         select:{
           tableB:{
@@ -48,7 +49,6 @@ export async function GET(
     },
     where: where,
     omit: {
-      tableId: true,
       createdAt: true,
     },
   });
@@ -88,8 +88,13 @@ export async function POST(
       );
     }
 
-    const {connection} = (await connectDatabase(databaseId));
-    await createFieldMysql(tableName, parsedData.columns, connection as MysqlConnection);
+    const {database,connection} = (await connectDatabase(databaseId));
+
+    if(database.type=="mysql"){
+      await createFieldMysql(tableName, parsedData.columns, connection as MysqlConnection);
+
+    }
+    console.log(parsedData)
 
     const data = await prisma.field.findMany({
       orderBy: {
@@ -200,9 +205,16 @@ export async function DELETE(
 
     //   const db = await getDatabaseById(databaseId);
 
-    const {connection} = (await connectDatabase(databaseId));
+    const {database,connection} = (await connectDatabase(databaseId));
 
-    await deleteTableMysql(tableName, connection  as MysqlConnection);
+    if(database.type=="mysql"){
+      await deleteTableMysql(tableName, connection  as MysqlConnection);
+
+    }
+    else if(database.type=="mongodb"){
+     await deleteTableMongo(tableName, database, connection as MongoConnection)
+    }
+
 
     await prisma.field.deleteMany({
       where: {
@@ -247,4 +259,17 @@ const deleteTableMysql = async (
   const [table] = await connection.query(query);
 
   return table;
+};
+
+export const deleteTableMongo = async (
+  tableName: string,
+  database: Database,
+  connection: MongoConnection
+) => {
+  const mongodb = await connection.db(database.name);
+
+ 
+
+  const collection = await mongodb.dropCollection(tableName);
+  return collection;
 };

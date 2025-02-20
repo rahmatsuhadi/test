@@ -46,7 +46,11 @@ export const findTablesAll = async(databaseId:string) => {
   return response.data
 }
 
-export const createTable = async (databaseId:string, form:Partial<Table>) =>{
+export interface IFormCreateTable extends Omit<Table, "id"| "createdAt">{
+  columns: Omit<Field, "id"| "createdAt" | "tableId">[]
+}
+
+export const createTable = async (databaseId:string, form:IFormCreateTable) =>{
   const response = await schema.post<Table>("/" + databaseId ,form)
   return response.data
 }
@@ -80,14 +84,14 @@ export const findColumnById =async(databaseId:string, tableName:string, columnId
   return response.data
 }
 
-export const createColumn = async(databaseId:string, tableName:string, column:Field | Field[]) =>{
-  const response = await schema.post<Field[]>("/" + databaseId  + "/" + tableName, {column});
+export const createColumn = async(databaseId:string, tableName:string, columns:Omit<Field, "id" | "createdAt" | "tableId">[]) =>{
+  const response = await schema.post<Field>("/" + databaseId  + "/" + tableName, {columns});
   return response.data
 }
 
 
 export const deleteColumnById = async(databaseId:string, tableName:string, columnId:string) =>{
-  const response = await schema.delete<Field>("/" + databaseId  + "/" + tableName);
+  const response = await schema.delete<Field>("/" + databaseId  + "/" + tableName + "/" + columnId);
   return response.data
 }
 

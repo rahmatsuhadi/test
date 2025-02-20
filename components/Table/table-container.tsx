@@ -25,6 +25,7 @@ import { useColumnData } from "@/hooks/useColumn";
 import { Label } from "../ui/label";
 import { useEffect, useState } from "react";
 import { Separator } from "../ui/separator";
+import { CreateColumnDialog } from "@/features/column/components/create-column-dialog";
 
 export  interface RowData {
   [key: string]: unknown; // Dynamic properties
@@ -149,7 +150,6 @@ export default function TableContainer({
     const protocol = window.location.protocol;
     setHostname(protocol + "//" + window.location.host);
   }, []); // Array kosong berarti efek hanya dijalankan sekali saat komponen di-mount
-  console.log(data)
   return (
     <>
       {listrequest.map((item, i) => {
@@ -163,12 +163,7 @@ export default function TableContainer({
               <h4 className="flex  min-w-[50%] rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm">
                 {url}
               </h4>
-              <Button
-                onClick={() => navigator.clipboard.writeText(url)}
-                type="submit"
-              >
-                Copy
-              </Button>
+             {/* <CreateColumnDialog databaseId={db} tableName={table} /> */}
             </div>
           </div>
         );

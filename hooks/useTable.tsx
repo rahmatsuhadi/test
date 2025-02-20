@@ -1,7 +1,7 @@
 "use client"    
-import { fetchColumnByTableName, fetchDataByTableName, fetchTables, findAll, findTablesAll } from "@/service/api"
+import {createTable, findAll, findTablesAll } from "@/service/api"
 import { Table } from "@prisma/client";
-import { useQuery } from "@tanstack/react-query"
+import { QueryClient, useMutation, useQuery } from "@tanstack/react-query"
 
 
 

@@ -16,10 +16,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTables } from "@/hooks/useTable";
-import { migrateDatabase, migrateDatabaseById } from "@/service/api";
+import {  deleteTableById, migrateDatabaseById } from "@/service/api";
 import { isAxiosError } from "axios";
 import prisma from "@/lib/db";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -65,10 +65,27 @@ export const columns: ColumnDef<Table>[] = [
     id: "actions",
     enableHiding: false,
     cell: ({ row }) => {
-      const payment = row.original;
-
       return (
-        <DropdownMenu>
+        <ActionsMenu table={row.original}/>
+      );
+    },
+  },
+];
+
+
+function ActionsMenu({table}:{table:Table}){
+  const queryClient = useQueryClient();
+
+
+  const {mutate} = useMutation<Table, Error, string>({
+    mutationFn : () => deleteTableById(table.databaseId, table.name),
+    onSuccess:() =>{
+      queryClient.refetchQueries({queryKey:["tables"]})
+    }
+  })
+
+  return(
+      <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
               <span className="sr-only">Open menu</span>
@@ -77,20 +94,14 @@ export const columns: ColumnDef<Table>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(payment.id)}
-            >
-              Copy payment ID
-            </DropdownMenuItem>
+           
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            {/* <DropdownMenuItem>View customer</DropdownMenuItem> */}
+            <DropdownMenuItem onClick={() => mutate(table.id)}>Delete</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      );
-    },
-  },
-];
+  )
+}
 
 export default function TableListingPage({ databaseId }: TableListingPage) {
   //   const params = useParams<{ databaseId: string;}>();

@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
   connectDatabase,
+  MongoConnection,
   MysqlConnection,
-} from "../connection";
+} from "../../../../service/connection";
 import { schemaField } from "./[tableName]/route";
-import { Field } from "@prisma/client";
+import { Database, Field } from "@prisma/client";
 
 const schemaTable = z.object({
   name: z.string(),
@@ -45,45 +46,50 @@ export async function POST(
   try {
     const databaseId = (await params).databaseId;
     const res = await request.json();
-
     const parsedData = schemaTable.parse(res);
 
     // const db = await getDatabaseById(databaseId);
 
-    const {connection} = await connectDatabase(databaseId);
+    const { database, connection } = await connectDatabase(databaseId);
 
-    await createTableMysql(
-      parsedData.name,
-      parsedData.columns,
-      connection as MysqlConnection
-    );
+    if (database.type == "mysql") {
+      await createTableMysql(
+        parsedData.name,
+        parsedData.columns,
+        connection as MysqlConnection
+      );
+    } else if (database.type == "mongodb") {
+      await createTableMongo(
+        parsedData.name,
+        parsedData.columns,
+        database,
+        connection as MongoConnection
+      );
+    }
 
-    
     const result = await prisma.table.create({
-        include:{
-            fields:{
-                select: {
-                    name:true,
-                    type: true,
-                    isNull: true
-                }
-            }
+      include: {
+        fields: {
+          select: {
+            name: true,
+            type: true,
+            isNull: true,
+          },
         },
-        data:{
-            name :parsedData.name,
-            fields:{
-                createMany:{
-                    data: parsedData.columns
-                }
-            },
-            databaseId,
-        }
-    })
-
-
+      },
+      data: {
+        name: parsedData.name,
+        fields: {
+          createMany: {
+            data: parsedData.columns,
+          },
+        },
+        databaseId,
+      },
+    });
 
     return Response.json(result);
-  } catch (error:unknown) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -92,7 +98,8 @@ export async function POST(
         { status: 400 }
       );
     }
-    if(error instanceof Error){
+    if (error instanceof Error) {
+      console.log(error);
       return NextResponse.json(
         { message: error?.message ?? "Internal Server Error" },
         { status: 500 }
@@ -101,13 +108,55 @@ export async function POST(
   }
 }
 
+export const createTableMongo = async (
+  tableName: string,
+  columns: Omit<Field, "id" | "createdAt" | "tableId">[],
+  database: Database,
+  connection: MongoConnection
+) => {
+  const mongodb = await connection.db(database.name);
+
+  const dummy: Record<string, unknown> = {};
+
+  for (const col of columns) {
+    switch (col.type) {
+      case "INT":
+        dummy[col.name] = 0;
+
+        break;
+
+      case "BOOLEAN":
+        dummy[col.name] = false;
+
+        break;
+
+      case "STRING":
+        dummy[col.name] = "";
+
+        break;
+
+      case "DATETIME":
+        dummy[col.name] = new Date().toISOString();
+
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  const collection = await mongodb.createCollection(tableName);
+  await collection.insertOne(dummy);
+  return collection;
+};
+
 export const getMySQLTablesByName = async (
   connection: MysqlConnection,
   name: string
 ) => {
   const [tables] = await connection.query("SHOW TABLES FROM " + name);
   const tableDetails = await Promise.all(
-// eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
     tables.map(async (table: any) => {
       const tableName = table[`Tables_in_${connection.getDatabaseName()}`];
       const [columns] = await connection.query(`DESCRIBE ${tableName}`);
@@ -122,41 +171,38 @@ const createTableMysql = async (
   columns: Omit<Field, "id" | "createdAt" | "tableId">[],
   connection: MysqlConnection
 ) => {
-    const columnsDefinition = columns
-      .map((column) => {
-        if (!column?.name || !column.type) {
-          throw new Error("Each column must have a fieldName and fieldType.");
-        }
+  const columnsDefinition = columns
+    .map((column) => {
+      if (!column?.name || !column.type) {
+        throw new Error("Each column must have a fieldName and fieldType.");
+      }
 
-        let sqlType: string;
-        switch (column.type) {
-          case "INT":
-            sqlType = "INT";
-            break;
-          case "STRING":
-            sqlType = "VARCHAR(255)"; // Atau sesuaikan ukuran sesuai kebutuhan
-            break;
-          case "BOOLEAN":
-            sqlType = "BOOLEAN";
-            break;
-          default:
-            throw new Error(`Unsupported column type: ${column.type}`);
-        }
-        const primaryKey = column.isPrimary ? ' PRIMARY KEY' : '';
+      let sqlType: string;
+      switch (column.type) {
+        case "INT":
+          sqlType = "INT";
+          break;
+        case "STRING":
+          sqlType = "VARCHAR(255)"; // Atau sesuaikan ukuran sesuai kebutuhan
+          break;
+        case "BOOLEAN":
+          sqlType = "BOOLEAN";
+          break;
+        default:
+          throw new Error(`Unsupported column type: ${column.type}`);
+      }
+      const primaryKey = column.isPrimary ? " PRIMARY KEY" : "";
 
-        return (
-          `${column.name} ${sqlType}${primaryKey}` + (column.isNull ? " NULL" : " NOT NULL")
-        );
-      })
-      .join(", ");
+      return (
+        `${column.name} ${sqlType}${primaryKey}` +
+        (column.isNull ? " NULL" : " NOT NULL")
+      );
+    })
+    .join(", ");
 
-    const query = `CREATE TABLE ${tableName} (${columnsDefinition})`;
+  const query = `CREATE TABLE ${tableName} (${columnsDefinition})`;
 
-    const [table] = await connection.query(query);
+  const [table] = await connection.query(query);
 
-    return table;
-  
+  return table;
 };
-
-
-

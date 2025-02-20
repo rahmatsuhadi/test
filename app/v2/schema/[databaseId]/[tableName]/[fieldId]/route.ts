@@ -1,7 +1,7 @@
 import prisma from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { connectDatabase, MysqlConnection } from "../../../connection";
+import { connectDatabase, MysqlConnection } from "../../../../../../service/connection";
 
 export const schemaField = z.object({
   name: z.string(),
@@ -54,14 +54,17 @@ export async function DELETE(
     });
 
     if (!field) {
-      return Response.json({ message: `Field ${fieldId} Not Found` });
+      return Response.json({ message: `Field ${fieldId} Not Found` },{status: 404});
     }
 
     //   const db = await getDatabaseById(databaseId);
 
-    const {connection} = (await connectDatabase(databaseId));
+    const {database,connection} = (await connectDatabase(databaseId));
 
-    await deleteTableMysql(tableName, field.name, connection as MysqlConnection);
+    if(database.type=="mysql"){
+      await deleteTableMysql(tableName, field.name, connection as MysqlConnection);
+    }
+
 
 
     const result = await prisma.field.delete({

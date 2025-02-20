@@ -30,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createTable, IFormCreateTable } from "@/service/api";
+import { createColumn, createTable, IFormCreateTable } from "@/service/api";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FieldType, Table } from "@prisma/client";
+import { Field, FieldType, Table } from "@prisma/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BinaryIcon,
@@ -48,9 +48,6 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 
 const formSchema = z.object({
-  name: z.string().min(1, {
-    message: "FieldName must be at least 1 characters.",
-  }),
   fields: z.array(
     z.object({
       name: z.string().min(1, "Name is required"),
@@ -89,13 +86,12 @@ let TYPEDATA = [
   // },
 ];
 
-export function CreateTableDialog({ databaseId }: { databaseId: string }) {
+export function CreateColumnDialog({ tableName,databaseId }: {databaseId:string, tableName: string }) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
       fields: [{ name: "", type: "STRING", isPrimary: false, isNull: false }],
     },
   });
@@ -107,15 +103,15 @@ export function CreateTableDialog({ databaseId }: { databaseId: string }) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<
-    Table,
+    Field,
     Error,
-    { databaseId: string; form: IFormCreateTable }
+    { databaseId: string; tableName: string, columns:Omit<Field, "id" | "createdAt" | "tableId">[]  }
   >({
-    mutationFn: ({ databaseId, form }) => createTable(databaseId, form),
+    mutationFn: ({ databaseId, columns,tableName }) => createColumn(databaseId,tableName,columns),
     onSuccess: () => {
       setIsOpen(false);
       form.reset();
-      queryClient.refetchQueries({ queryKey: ["tables"] });
+      queryClient.refetchQueries({ queryKey: ["column"],type: 'active'  });
       // Invalidate queries atau refetch jika perlu
       // queryClient.invalidateQueries({ queryKey: ["tables"] }); // Ganti dengan nama query yang sesuai
     },
@@ -124,16 +120,13 @@ export function CreateTableDialog({ databaseId }: { databaseId: string }) {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    mutation.mutate({
-      databaseId: databaseId,
-      form: {
-        databaseId: databaseId,
-        name: values.name,
-        columns: values.fields.map((ty) => {
-          return { ...ty, type: ty.type as FieldType };
-        }),
-      },
+ async function onSubmit(values: z.infer<typeof formSchema>) {
+  await  mutation.mutateAsync({
+      databaseId:databaseId,
+      columns: values.fields.map((ty) => {
+        return { ...ty, type: ty.type as FieldType };
+      }),
+      tableName: tableName
     });
   }
 
@@ -152,12 +145,12 @@ export function CreateTableDialog({ databaseId }: { databaseId: string }) {
       defaultOpen={isOpen}
     >
       <DialogTrigger asChild>
-        <Button>Create Table</Button>
+        <Button>Add Column</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[96%] p-4">
         <ScrollArea>
           <DialogHeader>
-            <DialogTitle>Create new Table</DialogTitle>
+            <DialogTitle>Add new Column</DialogTitle>
             {/* <DialogDescription>
               This action cannot be undone. This will permanently delete your
               account and remove your data from our servers.
@@ -169,23 +162,7 @@ export function CreateTableDialog({ databaseId }: { databaseId: string }) {
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-8 px-1 mt-4"
             >
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Table Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="name" {...field} />
-                    </FormControl>
-                    {/* <FormDescription>
-                      This is your public display name.
-                    </FormDescription> */}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+              
               {fields.map((_, index) => (
                 <div key={_.id} className="space-y-2">
                   <div className="flex space-x-2 ">

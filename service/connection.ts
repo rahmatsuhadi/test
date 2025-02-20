@@ -36,6 +36,7 @@ export const connectDatabase = async (
         host:db.host,
         dialect: "mysql",
         dialectModule: mysql
+        // dialectModule: mysql
       });
       connection = sequelize;
     // sequelize

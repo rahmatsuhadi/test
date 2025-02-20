@@ -2,7 +2,7 @@ import {
   connectDatabase,
   MongoConnection,
   MysqlConnection,
-} from "@/app/v2/schema/connection";
+} from "@/service/connection";
 import prisma from "@/lib/db";
 import { Database,} from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";

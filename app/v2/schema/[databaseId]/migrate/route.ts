@@ -4,7 +4,7 @@ import {
   connectDatabase,
   MongoConnection,
   MysqlConnection,
-} from "../../connection";
+} from "../../../../../service/connection";
 import { IField } from "@/types/mysql-type";
 import { getColumnTypeMysql } from "@/lib/mysql/filed-getter";
 import { Database, Field, Table } from "@prisma/client";
