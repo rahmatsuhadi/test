@@ -4,7 +4,7 @@ import {
   MysqlConnection,
 } from "@/service/connection";
 import prisma from "@/lib/db";
-import { Database,} from "@prisma/client";
+import { Database } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -14,7 +14,7 @@ export async function GET(
   const searchParams = request.nextUrl.searchParams;
   const limit = Number(searchParams.get("limit") || 20);
   const skip = Number(searchParams.get("skip") || 0);
-  const databaseId = (await params).databaseId;
+  // const databaseId = (await params).databaseId;
   const tableName = (await params).tableName;
 
   // Mengambil semua query parameters
@@ -30,11 +30,18 @@ export async function GET(
   // };
 
   try {
-    const { connection, database } = await connectDatabase(databaseId);
+    const table = await prisma.table.findFirst({
+      include: { database: true },
+      where: { name: tableName },
+    });
+    if (!table) {
+      return Response.json({ message: "Table Not Found" }, { status: 404 });
+    }
+    const database = table.database;
 
     if (database.type == "mysql") {
       const data = await getMySQLDataByTableName(
-        connection as MysqlConnection,
+        database,
         tableName,
         limit,
         skip,
@@ -47,7 +54,6 @@ export async function GET(
       });
     } else if (database.type == "mongodb") {
       const data = await getMongoCollectionByName(
-        connection as MongoConnection,
         database,
         tableName,
         limit,
@@ -62,26 +68,30 @@ export async function GET(
       });
     }
   } catch (error: unknown) {
-    if(error instanceof Error){
+    if (error instanceof Error) {
       return Response.json({
         message: error.message,
       });
-    }
-    else{
-      return Response.json({
-        message: "Internal Server Error"
-      },{status: 500})
+    } else {
+      return Response.json(
+        {
+          message: "Internal Server Error",
+        },
+        { status: 500 }
+      );
     }
   }
 }
 
-export const getMySQLDataByTableName = async (
-  connection: MysqlConnection,
+const getMySQLDataByTableName = async (
+  database: Database,
   name: string,
   limit: number = 20,
   skip: number = 0,
   filters: Record<string, string>
 ) => {
+  const connection = (await connectDatabase(database)) as MysqlConnection;
+
   const columnsData = await prisma.field.findMany({
     where: {
       table: {
@@ -94,7 +104,6 @@ export const getMySQLDataByTableName = async (
   });
 
   const fields = columnsData.map((val) => val.name).join("`, `");
-
   let filterConditions = "";
   if (filters) {
     filterConditions = Object.entries(filters)
@@ -104,7 +113,7 @@ export const getMySQLDataByTableName = async (
   }
 
   // Menghindari SQL injection dengan validasi nama tabel
-  const query = `SELECT \`${fields}\` FROM \`${name}\` 
+  const query = `SELECT \`${fields}\` FROM  ${database.name}.\`${name}\` 
             ${
               filterConditions ? `WHERE ${filterConditions}` : ""
             } LIMIT ${limit} OFFSET ${skip}`;
@@ -115,14 +124,14 @@ export const getMySQLDataByTableName = async (
   return columns;
 };
 
-export const getMongoCollectionByName = async (
-  connection: MongoConnection,
+const getMongoCollectionByName = async (
   database: Database,
   tableName: string,
   limit: number = 20,
   skip: number = 0,
   filters: Record<string, string>
 ) => {
+  const connection = (await connectDatabase(database)) as MongoConnection;
   const manager = await connection.db(database.name);
 
   const collection = await manager.collection(tableName);
@@ -157,68 +166,78 @@ export const getMongoCollectionByName = async (
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ databaseId: string, tableName:string}> }
+  { params }: { params: Promise<{ databaseId: string; tableName: string }> }
 ) {
   try {
     const databaseId = (await params).databaseId;
     const tableName = (await params).tableName;
     const req = await request.json();
 
-    const { connection, database } = await connectDatabase(databaseId);
+    const table = await prisma.table.findFirstOrThrow({
+      include: { database: true },
+      where: { name: tableName, databaseId },
+    });
+    const database = table.database;
 
-    if(database.type=="mysql"){
-      
-      await insertRecordMysql(connection as MysqlConnection, tableName,req)
-      
+    if (database.type == "mysql") {
+      await insertRecordMysql(database,tableName, req);
+
       return Response.json(req);
-    }
-    else if(database.type=="mongodb"){
-
-     const result =  await insertRecordMongoDD(connection as MongoConnection, database, tableName, req)
+    } else if (database.type == "mongodb") {
+      const result = await insertRecordMongoDD(
+        database,
+        tableName,
+        req
+      );
       return Response.json(result);
     }
-    
-
   } catch (error: unknown) {
     if (error instanceof Error) {
-        return NextResponse.json(
-            { message: error.message },
-            { status: 400 }
-        );
+      return NextResponse.json({ message: error.message }, { status: 400 });
     } else {
-        return NextResponse.json(
-            { message: "Internal Server Error" },
-            { status: 400 }
-        );
+      return NextResponse.json(
+        { message: "Internal Server Error" },
+        { status: 400 }
+      );
     }
-}
+  }
 }
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-const insertRecordMysql = async (connection: MysqlConnection, name: string, body:any) => {
+const insertRecordMysql = async (
+  database: Database,
+  name: string,
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+  body: any
+) => {
   // Menghindari SQL injection dengan validasi nama tabe
   // l
- // Menghindari SQL injection dengan validasi nama tabel
- const fields = Object.keys(body).map(field => `\`${field}\``).join(', ');
- const values = Object.values(body).map(value => `'${value}'`).join(', ');
+  const connection = (await connectDatabase(database)) as MysqlConnection;
+  // Menghindari SQL injection dengan validasi nama tabel
+  const fields = Object.keys(body)
+    .map((field) => `\`${field}\``)
+    .join(", ");
+  const values = Object.values(body)
+    .map((value) => `'${value}'`)
+    .join(", ");
 
- const query = `INSERT INTO \`${name}\` (${fields}) VALUES (${values})`;
+  const query = `INSERT INTO \`${database.name}\`.\`${name}\` (${fields}) VALUES (${values})`;
 
   const [result] = await connection.query(query);
 
   return result;
 };
 
-// eslint-disable-next-line  @typescript-eslint/no-explicit-any
-const insertRecordMongoDD = async (connection: MongoConnection,database:Database, name: string, body:any) => {
-  
-  const manager = await connection.db(database.name)
+const insertRecordMongoDD = async (
+  database: Database,
+  name: string,
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+  body: any
+) => {
+  const connection = (await connectDatabase(database)) as MongoConnection;
+  const manager = await connection.db(database.name);
 
   const collection = await manager.collection(name);
 
- const result =  await collection.insertOne(body)
-  return result
+  const result = await collection.insertOne(body);
+  return result;
 };
-
-
-
-

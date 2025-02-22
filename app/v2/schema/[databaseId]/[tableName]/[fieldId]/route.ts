@@ -2,16 +2,11 @@ import prisma from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDatabase, MysqlConnection } from "../../../../../../service/connection";
+import { Database } from "@prisma/client";
 
-export const schemaField = z.object({
-  name: z.string(),
-  type: z.enum(["INT", "STRING", "BOOLEAN"]),
-  isNull: z.boolean(),
-  isPrimary: z.boolean(),
-});
 
 export async function GET(
-  // request: NextRequest,
+  {}: NextRequest,
   { params }: { params: Promise<{ databaseId: string; tableName: string, fieldId:string }> }
 ) {
   // const databaseId = (await params).databaseId;
@@ -39,15 +34,16 @@ export async function GET(
 // delete table
 
 export async function DELETE(
-  request: NextRequest,
+  {}: NextRequest,
   { params }: { params: Promise<{ databaseId: string; tableName: string, fieldId:string }> }
 ) {
   try {
-    const databaseId = (await params).databaseId;
+    // const databaseId = (await params).databaseId;
     const tableName = (await params).tableName;
     const fieldId = (await params).fieldId;
 
     const field = await prisma.field.findFirst({
+      include:{table:{select:{database:true}}},
       where: {
         id: fieldId
       },
@@ -56,13 +52,13 @@ export async function DELETE(
     if (!field) {
       return Response.json({ message: `Field ${fieldId} Not Found` },{status: 404});
     }
+    const database = field.table.database;
 
     //   const db = await getDatabaseById(databaseId);
 
-    const {database,connection} = (await connectDatabase(databaseId));
 
     if(database.type=="mysql"){
-      await deleteTableMysql(tableName, field.name, connection as MysqlConnection);
+      await deleteTableMysql(tableName, field.name, database);
     }
 
 
@@ -97,10 +93,11 @@ export async function DELETE(
 const deleteTableMysql = async (
   tableName: string,
   columnName:string,
-  connection: MysqlConnection
+  database: Database
 ) => {
     
-  const query = `ALTER TABLE  ${tableName} DROP COLUMN ${columnName};`;
+  const connection = (await connectDatabase(database)) as MysqlConnection;
+  const query = `ALTER TABLE  ${database.name}.${tableName} DROP COLUMN ${columnName};`;
 
   const [table] = await connection.query(query);
 

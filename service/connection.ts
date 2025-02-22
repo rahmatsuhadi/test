@@ -17,23 +17,22 @@ export const getDatabaseById = async (id: string) => {
 };
 
 export const connectDatabase = async (
-  id: string
-): Promise<{connection:DatabaseConnection, database:Database}> => {
-  const connections: { [key: string]: { connection: DatabaseConnection, database: Database } } = {};
+  db: Database
+) => {
+  const connections: { [key: string]:  DatabaseConnection} = {};    
 
-  if (connections[id]) {
-    return connections[id];
+  if (connections[db.id]) {
+    return connections[db.id];
   }
   
-  const db = await getDatabaseById(id);
+  // const db = await getDatabaseById(id);
 
-  if (!db) throw new Error("Database not found");
+  // if (!db) throw new Error("Database not found");
 
   let connection;
 
   if (db.type == "mysql") {
-    const sequelize = new Sequelize(db.name, db.username, db.password, {
-        host:db.host,
+    const sequelize = new Sequelize( `${db.uri}`,{
         dialect: "mysql",
         dialectModule: mysql
         // dialectModule: mysql
@@ -52,13 +51,13 @@ export const connectDatabase = async (
 
   } else if (db.type == "mongodb") {
     const mongoClient = new MongoClient(
-      `mongodb+srv://${db.username}:${db.password}@${db.host}/${db.name}`
+      `${db.uri}`
     );
     connection = mongoClient;
     // return {connection:mongoClient ,database:db};
   } else {
     throw new Error("Unsupported database type");
   }
-  connections[id] = { connection, database: db };
-  return connections[id];
+  connections[db.id] = connection;
+  return connections[db.id] ;
 };

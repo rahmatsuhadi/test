@@ -24,24 +24,25 @@ export async function GET(
     return Response.json({ message: "Database Not Found" }, { status: 404 });
   }
 
-  const {connection} = await connectDatabase(databaseId);
   if (data.type == "mysql") {
-    await migrateDatabaseMysql(connection as MysqlConnection, databaseId);
+    await migrateDatabaseMysql(data);
   } else if (data.type == "mongodb") {
-    await migrateDatabaseMongo(connection as MongoConnection, data);
+    await migrateDatabaseMongo(data);
   }
 
   return Response.json({ message: "Success" });
 }
 
-export const getMySQLTables = async (connection: MysqlConnection) => {
-  const [tables] = await connection.query("SHOW TABLES");
+ const getMySQLTables = async (database:Database) => {
+  
+  const connection = await connectDatabase(database) as MysqlConnection;
+  const [tables] = await connection.query(`SHOW TABLES FROM \`${database.name}\``);
 
   const tableDetails = await Promise.all(
     // eslint-disable-next-line  @typescript-eslint/no-explicit-any
     tables.map(async (table: any) => {
       
-      const tableName = table[`Tables_in_${connection.getDatabaseName()}`];
+      const tableName = table[`Tables_in_${database.name}`];
       // const [columns] = await connection.query(`DESCRIBE ${tableName}`);
       return { name: tableName };
     })
@@ -49,45 +50,46 @@ export const getMySQLTables = async (connection: MysqlConnection) => {
   return tableDetails;
 };
 
-export const getMySQLColumnByTableName = async (
+ const getMySQLColumnByTableName = async (
   connection: MysqlConnection,
-  name: string
+  name: string,
+  database:Database
 ) => {
   // const [tables] = await connection.query("SHOW TABLES FROM " + name );
 
   // const tableDetails = await Promise.all(tables.map(async (table: any) => {
   // const tableName = table[`Tables_in_${connection.getDatabaseName()}`];
-  const [columns] = await connection.query(`DESCRIBE ${name}`);
+  const [columns] = await connection.query(`DESCRIBE ${database.name}.${name}`);
   // return { columns};
   // }));
   return columns as IField[];
 };
 
-export const getMySQLDataByTableName = async (
-  connection: MysqlConnection,
-  name: string
-) => {
-  const columnsData = await prisma.field.findMany({
-    where: {
-      table: {
-        name: name,
-      },
-    },
-    select: {
-      name: true,
-    },
-  });
+//  const getMySQLDataByTableName = async (
+//   connection: MysqlConnection,
+//   name: string
+// ) => {
+//   const columnsData = await prisma.field.findMany({
+//     where: {
+//       table: {
+//         name: name,
+//       },
+//     },
+//     select: {
+//       name: true,
+//     },
+//   });
 
-  const fields = columnsData.map((val) => val.name).join("`, `");
+//   const fields = columnsData.map((val) => val.name).join("`, `");
 
-  // Menghindari SQL injection dengan validasi nama tabel
-  const query = `SELECT \`${fields}\` FROM \`${name}\` LIMIT 25`;
+//   // Menghindari SQL injection dengan validasi nama tabel
+//   const query = `SELECT \`${fields}\` FROM \`${name}\` LIMIT 25`;
 
-  const [columns] = await connection.query(query);
-  // return { columns};
-  // }));
-  return columns;
-};
+//   const [columns] = await connection.query(query);
+//   // return { columns};
+//   // }));
+//   return columns;
+// };
 
 interface IForeign {
   local_column: string;
@@ -96,7 +98,7 @@ interface IForeign {
   foreign_column: string;
 }
 
-export const getForeignKeysByTableName = async (
+ const getForeignKeysByTableName = async (
   connection: MysqlConnection,
   tableName: string
 ) => {
@@ -117,19 +119,19 @@ WHERE
   return foreignKeys as IForeign[];
 };
 
-export const migrateDatabaseMysql = async (
-  connection: MysqlConnection,
-  databaseId: string
+ const migrateDatabaseMysql = async (database:Database
 ) => {
+  
+  const connection = await connectDatabase(database) as MysqlConnection;
 
   await prisma.relation.deleteMany({
     where: {
       OR:[{
         tableA:{
-          databaseId
+          databaseId:database.id
         },        
         tableB:{
-          databaseId
+          databaseId:database.id
         }
       }]
     },
@@ -139,7 +141,7 @@ export const migrateDatabaseMysql = async (
   await prisma.field.deleteMany({
     where: {
       table: {
-        databaseId,
+        databaseId:database.id,
       },
     },
   });
@@ -147,13 +149,13 @@ export const migrateDatabaseMysql = async (
 
   await prisma.table.deleteMany({
     where: {
-      databaseId,
+      databaseId:database.id,
     },
   });
   
   console.log("DELETING TABLE")
 
-  const tablesDatabase = await getMySQLTables(connection);
+  const tablesDatabase = await getMySQLTables(database);
 
   // tablesDatabase.forEach(async (tb) => {
   const resultsTable:Table[] = [];
@@ -165,14 +167,15 @@ export const migrateDatabaseMysql = async (
     const res = await prisma.table.create({
       data: {
         name: tb.name,
-        databaseId: databaseId,
+        databaseId: database.id,
       },
     });
     resultsTable.push(res);
 
     const columnsDatabases = await getMySQLColumnByTableName(
       connection,
-      tb.name
+      tb.name,
+      database
     );
 
     for (const col of columnsDatabases) {
@@ -228,11 +231,12 @@ export const migrateDatabaseMysql = async (
   }
 };
 
-export const migrateDatabaseMongo = async (
-  connection: MongoConnection,
+ const migrateDatabaseMongo = async (
   database: Database
 ) => {
   try {
+    
+  const connection = await connectDatabase(database) as MongoConnection;
     const mongodb = await connection.db(database.name);
 
     await prisma.field.deleteMany({

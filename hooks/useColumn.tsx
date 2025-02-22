@@ -17,7 +17,7 @@ export const useColumnByTableName = (
   tableName: string,
 ) => {
   return useQuery({
-    queryKey: ["columnDetail", db],
+    queryKey: ["columns", db],
     queryFn: () => findColumnAll(db, tableName),
   });
 };

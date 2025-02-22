@@ -36,12 +36,10 @@ export async function POST(request: NextRequest) {
     const res = await request.json();
 
     const parsedData = schemaDatabase.parse(res);
+    console.log(parsedData)
 
-    const result = await prisma.database.create({
-        data: parsedData
-    })
 
-    return Response.json(result);
+    return Response.json({result:"OK"});
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

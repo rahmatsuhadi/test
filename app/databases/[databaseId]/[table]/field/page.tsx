@@ -1,10 +1,8 @@
 import PageContainer from "@/components/layout/page-containter";
-import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
 import { CreateColumnDialog } from "@/features/column/components/create-column-dialog";
 import TableListingColumnPage from "@/features/column/components/list";
-import { Plus } from "lucide-react";
 
 export default async function ListColumn({
   params,

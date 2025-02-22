@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDatabase, MongoConnection, MysqlConnection } from "../../../../../service/connection";
 
-export const schemaField = z.object({
+ const schemaField = z.object({
   name: z.string(),
   type: z.enum([ "STRING", "BOOLEAN", "INT"]),
   isNull: z.boolean(),
@@ -75,11 +75,14 @@ export async function POST(
 
     const parsedData = z.object({ columns: schemaField.array() }).parse(res);
 
-    const table = await prisma.table.findFirst({
-      where: {
-        name: tableName,
+    const table = await prisma.table.findFirstOrThrow({
+      include:{database:true},
+      where:{
+        databaseId:databaseId,
+        name: tableName
       },
     });
+    const database = table.database
 
     if (!table) {
       return Response.json(
@@ -88,13 +91,10 @@ export async function POST(
       );
     }
 
-    const {database,connection} = (await connectDatabase(databaseId));
 
     if(database.type=="mysql"){
-      await createFieldMysql(tableName, parsedData.columns, connection as MysqlConnection);
-
+      await createFieldMysql(tableName, parsedData.columns, database);
     }
-    console.log(parsedData)
 
     const data = await prisma.field.findMany({
       orderBy: {
@@ -135,6 +135,7 @@ export async function POST(
       );
     }
     else{
+      console.log(error)
       return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
     }
   }
@@ -143,8 +144,11 @@ export async function POST(
 const createFieldMysql = async (
   tableName: string,
   columns: Omit<Field, "id" | "createdAt" | "tableId">[],
-  connection: MysqlConnection
+  database:Database
 ) => {
+
+  const connection = await connectDatabase(database) as MysqlConnection
+
   const columnsDefinition = columns
     .map((column) => {
       if (!column?.name || !column.type) {
@@ -175,7 +179,7 @@ const createFieldMysql = async (
     .join(", ");
 
 
-  const query = `ALTER TABLE ${tableName} ${columnsDefinition};`;
+  const query = `ALTER TABLE ${database.name}.${tableName} ${columnsDefinition};`;
 
   const [table] = await connection.query(query);
 
@@ -193,6 +197,7 @@ export async function DELETE(
     const tableName = (await params).tableName;
 
     const table = await prisma.table.findFirst({
+      include: {database:true},
       where: {
         databaseId,
         name: tableName,
@@ -202,17 +207,17 @@ export async function DELETE(
     if (!table) {
       return Response.json({ message: `Table ${tableName} Not Found` });
     }
+    const database = table.database
 
     //   const db = await getDatabaseById(databaseId);
 
-    const {database,connection} = (await connectDatabase(databaseId));
 
     if(database.type=="mysql"){
-      await deleteTableMysql(tableName, connection  as MysqlConnection);
+      await deleteTableMysql(tableName, database);
 
     }
     else if(database.type=="mongodb"){
-     await deleteTableMongo(tableName, database, connection as MongoConnection)
+     await deleteTableMongo(tableName, database)
     }
 
 
@@ -231,7 +236,6 @@ export async function DELETE(
 
     return Response.json(result);
   } catch (error: unknown) {
-    console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -241,6 +245,7 @@ export async function DELETE(
       );
     }
     else if(error instanceof Error){
+      console.log(error);
       return NextResponse.json(
         { message: error?.message ?? "Internal Server Error" },
         { status: 500 }
@@ -252,20 +257,25 @@ export async function DELETE(
 
 const deleteTableMysql = async (
   tableName: string,
-  connection: MysqlConnection
+  database:Database
 ) => {
-  const query = `DROP TABLE ${tableName}`;
+  
+  const connection = (await connectDatabase(database)) as MysqlConnection;
+
+  const query = `DROP TABLE ${database.name}.${tableName}`;
 
   const [table] = await connection.query(query);
 
   return table;
 };
 
-export const deleteTableMongo = async (
+ const deleteTableMongo = async (
   tableName: string,
   database: Database,
-  connection: MongoConnection
 ) => {
+
+  const connection = (await connectDatabase(database)) as MongoConnection;
+
   const mongodb = await connection.db(database.name);
 
  

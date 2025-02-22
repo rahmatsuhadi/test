@@ -25,7 +25,6 @@ import { useColumnData } from "@/hooks/useColumn";
 import { Label } from "../ui/label";
 import { useEffect, useState } from "react";
 import { Separator } from "../ui/separator";
-import { CreateColumnDialog } from "@/features/column/components/create-column-dialog";
 
 export  interface RowData {
   [key: string]: unknown; // Dynamic properties

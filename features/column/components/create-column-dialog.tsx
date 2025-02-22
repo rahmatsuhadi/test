@@ -111,7 +111,8 @@ export function CreateColumnDialog({ tableName,databaseId }: {databaseId:string,
     onSuccess: () => {
       setIsOpen(false);
       form.reset();
-      queryClient.refetchQueries({ queryKey: ["column"],type: 'active'  });
+      queryClient.refetchQueries({ queryKey: ["columns"] });
+      queryClient.invalidateQueries({ queryKey: ["columns"] });
       // Invalidate queries atau refetch jika perlu
       // queryClient.invalidateQueries({ queryKey: ["tables"] }); // Ganti dengan nama query yang sesuai
     },

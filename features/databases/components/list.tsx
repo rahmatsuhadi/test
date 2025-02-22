@@ -1,15 +1,13 @@
 "use client";
 
-import { useParams} from "next/navigation";
-import { DataDatabaseTable } from "./table";
+// import { useParams} from "next/navigation";
   
 type DatabaseListingPage = {};
 
 export default function DatabaseListingPage({}: DatabaseListingPage) {
-  const params = useParams<{ tag: string; item: string }>();
+  // const params = useParams<{ tag: string; item: string }>();
 
 
-  return(
-    <DataDatabaseTable/>
+  return(<></>
   )
 }

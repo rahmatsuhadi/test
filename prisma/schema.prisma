@@ -10,12 +10,12 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid()) @map("_id")
+  id        String      @id @default(uuid()) @map("_id")
   username  String   @unique
   name      String?
   password  String
@@ -51,21 +51,18 @@ enum FieldType {
 }
 
 model Database {
-  id        String       @id @default(uuid()) @map("_id")
+  id        String          @id @default(uuid()) @map("_id")
   name      String
   type      TypeDatabase
-  host      String
-  username  String
-  password  String
-  port      Int
+  uri       String
   createdAt DateTime     @default(now())
   tables    Table[]
 }
 
 model Table {
-  id         String     @id @default(uuid()) @map("_id")
+  id         String        @id @default(uuid()) @map("_id")
   name       String
-  databaseId String     @map("database_id")
+  databaseId String        @map("database_id")
   // type       TableType
   fields     Field[]
   database   Database   @relation(fields: [databaseId], references: [id])
@@ -75,13 +72,13 @@ model Table {
 }
 
 model Field {
-  id        String    @id @default(uuid()) @map("_id")
+  id        String       @id @default(uuid()) @map("_id")
   name      String
   isPrimary Boolean   @default(false)
   isNull    Boolean   @default(false)
   type      FieldType
-  tableId   String    @map("table_id")
-  
+  tableId   String       @map("table_id")
+
   relationsA Relation[] @relation("RelationFieldA")
   relationsB Relation[] @relation("RelationFieldB")
 
@@ -98,9 +95,9 @@ model Relation {
 
   type RelationType
 
-  tableA    Table    @relation("RelationTableA", fields: [tableAId], references: [id])
-  tableB    Table    @relation("RelationTableB", fields: [tableBId], references: [id])
-  
+  tableA Table @relation("RelationTableA", fields: [tableAId], references: [id])
+  tableB Table @relation("RelationTableB", fields: [tableBId], references: [id])
+
   fieldA    Field    @relation("RelationFieldA", fields: [fieldAId], references: [id])
   fieldB    Field    @relation("RelationFieldB", fields: [fieldBId], references: [id])
   createdAt DateTime @default(now())

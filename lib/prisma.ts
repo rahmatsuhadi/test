@@ -1,54 +1,54 @@
 import { PrismaClient } from '@prisma/client/';
 
 export const prismaApp = new PrismaClient();
-const prismaClients: { [key: string]: PrismaClient } = {};
+// const prismaClients: { [key: string]: PrismaClient } = {};
 
-async function getDatabaseInfo(id: string) {
-  const database = await prismaApp.database.findUnique({
-    where: { id },
-  });
-  return database;
-}
+// async function getDatabaseInfo(id: string) {
+//   const database = await prismaApp.database.findUnique({
+//     where: { id },
+//   });
+//   return database;
+// }
 
-export async function getPrismaClient(databaseId: string): Promise<PrismaClient> {
-  if (prismaClients[databaseId]) {
-    return prismaClients[databaseId];
-  }
+// export async function getPrismaClient(databaseId: string): Promise<PrismaClient> {
+//   if (prismaClients[databaseId]) {
+//     return prismaClients[databaseId];
+//   }
 
-  const dbInfo = await getDatabaseInfo(databaseId);
+//   const dbInfo = await getDatabaseInfo(databaseId);
 
-  if (!dbInfo) {
-    throw new Error('Database info not found');
-  }
+//   if (!dbInfo) {
+//     throw new Error('Database info not found');
+//   }
 
-  const { type, host, username, password, port } = dbInfo;
+//   const { type } = dbInfo;
 
-  const url = createDatabaseUrl(type, host, username, password, port);
+//   const url = createDatabaseUrl(type, host, username, password, port);
 
-  const prismaClient = new PrismaClient({
-    datasources: {    
-      db: {
-        url,
-      },
-    },
-  });
+//   const prismaClient = new PrismaClient({
+//     datasources: {    
+//       db: {
+//         url,
+//       },
+//     },
+//   });
 
-  prismaClients[databaseId] = prismaClient;
+//   prismaClients[databaseId] = prismaClient;
 
-  return prismaClient;
-}
+//   return prismaClient;
+// }
 
-function createDatabaseUrl(type: string, host: string, username: string, password: string, port?: number) {
-  switch (type) {
-    case 'mongodb':
-      return `mongodb://${username}:${password}@${host}:${port}/mydatabase`;
-    case 'mysql':
-      return `mysql://${username}:${password}@${host}:${port}/mydatabase`;
-    // Tambahkan jenis database lain sesuai kebutuhan
-    default:
-      throw new Error('Unsupported database type');
-  }
-}
+// function createDatabaseUrl(type: string, host: string, username: string, password: string, port?: number) {
+//   switch (type) {
+//     case 'mongodb':
+//       return `mongodb://${username}:${password}@${host}:${port}/mydatabase`;
+//     case 'mysql':
+//       return `mysql://${username}:${password}@${host}:${port}/mydatabase`;
+//     // Tambahkan jenis database lain sesuai kebutuhan
+//     default:
+//       throw new Error('Unsupported database type');
+//   }
+// }
 
 
 

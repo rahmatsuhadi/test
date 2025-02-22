@@ -6,8 +6,16 @@ import {
   MongoConnection,
   MysqlConnection,
 } from "../../../../service/connection";
-import { schemaField } from "./[tableName]/route";
 import { Database, Field } from "@prisma/client";
+
+
+
+const schemaField = z.object({
+  name: z.string(),
+  type: z.enum([ "STRING", "BOOLEAN", "INT"]),
+  isNull: z.boolean(),
+  isPrimary: z.boolean(),
+});
 
 const schemaTable = z.object({
   name: z.string(),
@@ -48,23 +56,16 @@ export async function POST(
     const res = await request.json();
     const parsedData = schemaTable.parse(res);
 
-    // const db = await getDatabaseById(databaseId);
+    const credential = await prisma.database.findUniqueOrThrow({
+      where: { id:databaseId },
+    });
 
-    const { database, connection } = await connectDatabase(databaseId);
+    if(credential.type=="mysql"){
+      await createTableMysql(parsedData.name, parsedData.columns, credential)
+    }
 
-    if (database.type == "mysql") {
-      await createTableMysql(
-        parsedData.name,
-        parsedData.columns,
-        connection as MysqlConnection
-      );
-    } else if (database.type == "mongodb") {
-      await createTableMongo(
-        parsedData.name,
-        parsedData.columns,
-        database,
-        connection as MongoConnection
-      );
+    else if(credential.type=="mongodb"){
+      await createTableMongo(parsedData.name, parsedData.columns, credential)
     }
 
     const result = await prisma.table.create({
@@ -99,7 +100,6 @@ export async function POST(
       );
     }
     if (error instanceof Error) {
-      console.log(error);
       return NextResponse.json(
         { message: error?.message ?? "Internal Server Error" },
         { status: 500 }
@@ -108,12 +108,15 @@ export async function POST(
   }
 }
 
-export const createTableMongo = async (
+ const createTableMongo = async (
   tableName: string,
   columns: Omit<Field, "id" | "createdAt" | "tableId">[],
   database: Database,
-  connection: MongoConnection
 ) => {
+
+
+  const connection = await connectDatabase(database) as MongoConnection;
+
   const mongodb = await connection.db(database.name);
 
   const dummy: Record<string, unknown> = {};
@@ -150,27 +153,33 @@ export const createTableMongo = async (
   return collection;
 };
 
-export const getMySQLTablesByName = async (
-  connection: MysqlConnection,
-  name: string
-) => {
-  const [tables] = await connection.query("SHOW TABLES FROM " + name);
-  const tableDetails = await Promise.all(
-    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-    tables.map(async (table: any) => {
-      const tableName = table[`Tables_in_${connection.getDatabaseName()}`];
-      const [columns] = await connection.query(`DESCRIBE ${tableName}`);
-      return { columns };
-    })
-  );
-  return tableDetails;
-};
+//  const getMySQLTablesByName = async (
+//   connection: MysqlConnection,
+//   name: string
+// ) => {
+//   const [tables] = await connection.query("SHOW TABLES FROM " + name);
+//   const tableDetails = await Promise.all(
+//     // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+//     tables.map(async (table: any) => {
+//       const tableName = table[`Tables_in_${connection.getDatabaseName()}`];
+//       const [columns] = await connection.query(`DESCRIBE ${tableName}`);
+//       return { columns };
+//     })
+//   );
+//   return tableDetails;
+// };
 
 const createTableMysql = async (
   tableName: string,
   columns: Omit<Field, "id" | "createdAt" | "tableId">[],
-  connection: MysqlConnection
+  database: Database,
 ) => {
+
+  
+
+  const connection = await connectDatabase(database) as MysqlConnection;
+
+
   const columnsDefinition = columns
     .map((column) => {
       if (!column?.name || !column.type) {
@@ -199,8 +208,8 @@ const createTableMysql = async (
       );
     })
     .join(", ");
-
-  const query = `CREATE TABLE ${tableName} (${columnsDefinition})`;
+    
+    const query = `CREATE TABLE ${database.name}.${tableName} (${columnsDefinition})`;
 
   const [table] = await connection.query(query);
 
