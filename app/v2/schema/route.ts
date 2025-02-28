@@ -1,4 +1,5 @@
 import prisma from "@/lib/db";
+import { generateUniqueId } from "@/lib/generateId";
 import {
   connectDatabase,
   MongoConnection,
@@ -12,6 +13,7 @@ const schemaDatabase = z.object({
   name: z.string(),
   type: z.enum(["mysql", "mongodb"]),
   uri: z.string(),
+  projectName: z.string(),
 });
 
 export async function GET(request: NextRequest) {
@@ -24,36 +26,41 @@ export async function GET(request: NextRequest) {
     skip: skip,
   });
 
-  const count = await prisma.database.count();
+  // const count = await prisma.database.count();
 
-  return Response.json({
-    data: data,
-    limit,
-    skip,
-    total: count,
-  });
+  return Response.json(data);
+
+  // return Response.json({
+  //   data: data,
+  //   limit,
+  //   skip,
+  //   total: count,
+  // });
 }
 
 export async function POST(request: NextRequest) {
+  let id = "";
+
   try {
     const res = await request.json();
 
     const parsedData = schemaDatabase.parse(res);
 
     const result = await prisma.database.create({
-      data: parsedData,
+      data: {
+        ...parsedData,
+        id: generateUniqueId("db"),
+      },
     });
-    if(result.type=="mysql"){
-       await createDatabaseMysql(result)
-
-    }else if(result.type=="mongodb"){
+    id = result.id;
+    if (result.type == "mysql") {
+      await createDatabaseMysql(result);
+    } else if (result.type == "mongodb") {
       await createMongoDatabase(result);
-
     }
 
     return Response.json(result);
   } catch (error) {
-    console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -61,23 +68,27 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    } else if (error instanceof Error) {
+      await prisma.database.delete({ where: { id: id } });
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    } else {
+      await prisma.database.delete({ where: { id: id } });
+      return NextResponse.json(
+        { error: "Internal Server Error" },
+        { status: 500 }
+      );
     }
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
   }
 }
 
 const createDatabaseMysql = async (database: Database) => {
-  const connection = await connectDatabase(database)  as MysqlConnection;
-
+  const connection = (await connectDatabase(database)) as MysqlConnection;
 
   await connection.query(`CREATE DATABASE IF NOT EXISTS ${database.name}`);
   console.log("Database created successfully!");
 };
 const createMongoDatabase = async (database: Database) => {
-  const connection = await connectDatabase(database) as MongoConnection;
+  const connection = (await connectDatabase(database)) as MongoConnection;
 
   const db = connection.db(database.name);
 

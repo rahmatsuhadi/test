@@ -124,18 +124,18 @@ WHERE
   
   const connection = await connectDatabase(database) as MysqlConnection;
 
-  await prisma.relation.deleteMany({
-    where: {
-      OR:[{
-        tableA:{
-          databaseId:database.id
-        },        
-        tableB:{
-          databaseId:database.id
-        }
-      }]
-    },
-  });
+  // await prisma.relation.deleteMany({
+  //   where: {
+  //     OR:[{
+  //       tableA:{
+  //         databaseId:database.id
+  //       },        
+  //       tableB:{
+  //         databaseId:database.id
+  //       }
+  //     }]
+  //   },
+  // });
   console.log("DELETING RELATION")
   //
   await prisma.field.deleteMany({
@@ -188,7 +188,7 @@ WHERE
           type: type,
           isPrimary: col.Key == "PRI",
           tableId: res.id,
-          isNull: col.Null == "NO" ? false : true,
+          isRequired: col.Null != "NO" ? false : true,
         },
       });
       resultsColumn.push(resField);
@@ -196,39 +196,39 @@ WHERE
     }
   }
 
-  for (const tabRel of resultsTable) {
-    const relations = await getForeignKeysByTableName(connection, tabRel.name);
+  // for (const tabRel of resultsTable) {
+  //   const relations = await getForeignKeysByTableName(connection, tabRel.name);
 
-    for (const relation of relations) {
-      const localField = resultsColumn.find(
-        (fi) => fi.name == relation.local_column && fi.table.name == relation.local_table
-      )?.id;
-      const targetField = resultsColumn.find(
-        (fi) => fi.name == relation.foreign_column && fi.table.name == relation.foreign_table
-      )?.id;
+  //   for (const relation of relations) {
+  //     const localField = resultsColumn.find(
+  //       (fi) => fi.name == relation.local_column && fi.table.name == relation.local_table
+  //     )?.id;
+  //     const targetField = resultsColumn.find(
+  //       (fi) => fi.name == relation.foreign_column && fi.table.name == relation.foreign_table
+  //     )?.id;
 
-      const targetTable = resultsTable.find(
-        (fi) => fi.name == relation.foreign_table
-      )?.id;
+  //     const targetTable = resultsTable.find(
+  //       (fi) => fi.name == relation.foreign_table
+  //     )?.id;
 
 
-      if (!localField || !targetField || !targetTable) {
-        console.log("Relation no valid");
-        return;
-      }
+  //     if (!localField || !targetField || !targetTable) {
+  //       console.log("Relation no valid");
+  //       return;
+  //     }
 
-      await prisma.relation.create({
-        data: {
-          tableAId: tabRel.id,
-          fieldAId: localField,
-          type: "ONE_TO_MANY",
-          fieldBId: targetField,
-          tableBId: targetTable,
-        },
-      });
-    }
-    console.log("CREATE RELATION");
-  }
+  //     await prisma.relation.create({
+  //       data: {
+  //         tableAId: tabRel.id,
+  //         fieldAId: localField,
+  //         type: "ONE_TO_MANY",
+  //         fieldBId: targetField,
+  //         tableBId: targetTable,
+  //       },
+  //     });
+  //   }
+  //   console.log("CREATE RELATION");
+  // }
 };
 
  const migrateDatabaseMongo = async (
@@ -273,7 +273,7 @@ WHERE
           data: {
             name: field,
             type: "STRING",
-            isNull: true,
+            isRequired: true,
             isPrimary: field =="_id",
             tableId: response.id,
           },

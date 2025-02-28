@@ -1,7 +1,7 @@
 
 export enum ColumnType {
     STRING = 'STRING',
-    INT = 'INT',
+    NUMBER = 'NUMBER',
     FLOAT = 'FLOAT',
     BOOLEAN = 'BOOLEAN',
     DATE = 'DATE',
@@ -13,7 +13,7 @@ export function getColumnTypeMysql(columnType: string): ColumnType {
     if (columnType.startsWith('varchar') || columnType.startsWith('text')) {
       return ColumnType.STRING;
     } else if (columnType.startsWith('int')) {
-      return ColumnType.INT;
+      return ColumnType.NUMBER;
     } else if (columnType.startsWith('float') || columnType.startsWith('double')) {
       return ColumnType.FLOAT;
     } else if (columnType.startsWith('boolean')) {

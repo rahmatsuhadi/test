@@ -1,9 +1,10 @@
-import { SelectDatabase } from "@/components/Card/select-database";
-
-export default function Home() {
+import { LoginForm } from "@/components/login-form"
+export default function Page() {
   return (
-    <div className="w-full flex justify-center items-center h-screen">
-      <SelectDatabase />
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm">
+        <LoginForm />
+      </div>
     </div>
-  );
+  )
 }

@@ -17,7 +17,7 @@ const schema = axios.create({
 
 
 export const findDatabasesAll = async ()=>{
-  const response= await schema.get<{data:Database[], total:number, skip:number, limit:number}>("/");
+  const response= await schema.get<Database[]>("/");
   return response.data;
 }
 
@@ -56,7 +56,7 @@ export const createTable = async (databaseId:string, form:IFormCreateTable) =>{
 }
 
 export const findTableByName = async(databaseId:string, tableName:string) =>{
-  const response = await schema.get<{data:Field[], skip:number,limit:number, total:number}>("/" + databaseId + "/" + tableName)
+  const response = await schema.get<Field[]>("/" + databaseId + "/" + tableName)
   return response.data
 }
 
@@ -127,6 +127,12 @@ export const deleteRelationById =async (databaseId:string, relationId:string) =>
   return response.data
 }
 
+// realation 
+
+export const findRelationByTableName = async(databaseId:string, tableName:string) =>{
+  const response = await schema.get<Relation[]>("/" + databaseId + "/relation/" + tableName + "/");
+  return response.data;
+}
 
 
 // recprd data
@@ -142,6 +148,12 @@ export const findById = async(databaseId:string, tableName:string, recordId:stri
   return response.data;
 }
 
+
+export const insertData = async(databaseId:string, tableName:string, form:any) =>{
+  const response = await api.post("/" + databaseId + "/api/" + tableName, form);
+  return response.data;
+}
+
 export const deleteById = async(databaseId:string, tableName:string, recordId:string) =>{
   const response = await api.delete("/" + databaseId + "/api/" + tableName + "/" + recordId)
   return response.data
@@ -151,6 +163,9 @@ export const updateByById = async(databaseId:string, tableName:string, recordId:
   const response = await api.patch("/" + databaseId + "/api/" + tableName + "/" + recordId, body)
   return response.data
 }
+
+
+
 
 
 

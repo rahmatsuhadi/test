@@ -84,12 +84,12 @@ export const columns: ColumnDef<Field & { relationsA: Array<{ tableB: Table; fie
   },
   
   {
-    accessorKey: "isNull",
-    header: "isNull",
+    accessorKey: "isRequired",
+    header: "Required",
     cell: ({ row }) => {
       return (
         <div className="">
-         {row.original.isNull ? "YES" : "NO"}
+         {!row.original.isRequired ? "YES" : "NO"}
         </div>
       );
     },

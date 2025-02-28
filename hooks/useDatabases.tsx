@@ -7,7 +7,7 @@ import {findDatabasesAll } from "@/service/api";
 
 
 export const useDatabases = () =>{
-    return useQuery<{data:Database[], total:number, skip:number, limit:number}, Error>({
+    return useQuery<Database[], Error>({
         queryKey: ['databases'],
         queryFn: findDatabasesAll
     });

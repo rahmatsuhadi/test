@@ -15,7 +15,7 @@ datasource db {
 }
 
 model User {
-  id        String      @id @default(uuid()) @map("_id")
+  id        String   @id @default(uuid()) @map("_id")
   username  String   @unique
   name      String?
   password  String
@@ -41,64 +41,64 @@ enum RelationType {
 
 enum FieldType {
   STRING
-  INT
+  NUMBER
   FLOAT
   BOOLEAN
   DATE
   DATETIME
+  RELATION
   JSON
   // Tambahkan tipe data lain sesuai kebutuhan
 }
 
 model Database {
-  id        String          @id @default(uuid()) @map("_id")
-  name      String
-  type      TypeDatabase
-  uri       String
-  createdAt DateTime     @default(now())
-  tables    Table[]
+  id          String       @id @default(uuid()) @map("_id")
+  projectName String
+  name        String
+  type        TypeDatabase
+  uri         String
+  createdAt   DateTime     @default(now())
+  tables      Table[]
 }
 
 model Table {
-  id         String        @id @default(uuid()) @map("_id")
-  name       String
-  databaseId String        @map("database_id")
+  id              String     @id @default(uuid()) @map("_id")
+  name            String
+  databaseId      String     @map("database_id")
   // type       TableType
-  fields     Field[]
-  database   Database   @relation(fields: [databaseId], references: [id])
-  relationsA Relation[] @relation("RelationTableA")
-  relationsB Relation[] @relation("RelationTableB")
-  createdAt  DateTime   @default(now())
+  fields          Field[]
+  database        Database   @relation(fields: [databaseId], references: [id])
+  relations       Relation[] @relation("Table")
+  targetRelations Relation[] @relation("RelationTable")
+  createdAt       DateTime   @default(now())
 }
 
 model Field {
-  id        String       @id @default(uuid()) @map("_id")
-  name      String
-  isPrimary Boolean   @default(false)
-  isNull    Boolean   @default(false)
-  type      FieldType
-  tableId   String       @map("table_id")
+  id         String    @id @default(uuid()) @map("_id")
+  name       String
+  isPrimary  Boolean?   @default(false)
+  isRequired Boolean?   @default(true)
+  type       FieldType
+  tableId    String    @map("table_id")
 
-  relationsA Relation[] @relation("RelationFieldA")
-  relationsB Relation[] @relation("RelationFieldB")
+  // relationsA Relation[] @relation("RelationFieldA")
+  // relationsB Relation[] @relation("RelationFieldB")
 
   table     Table    @relation(fields: [tableId], references: [id])
   createdAt DateTime @default(now())
 }
 
 model Relation {
-  id       String @id @default(uuid()) @map("_id")
-  tableAId String @map("table_a_id")
-  tableBId String @map("table_b_id")
-  fieldAId String @map("field_a_id")
-  fieldBId String @map("field_b_id")
+  id              String @id @default(uuid()) @map("_id")
+  tableid         String @map("table_a_id")
+  relationTableId String @map("table_b_id")
 
   type RelationType
 
-  tableA Table @relation("RelationTableA", fields: [tableAId], references: [id])
-  tableB Table @relation("RelationTableB", fields: [tableBId], references: [id])
+  table         Table @relation("Table", fields: [tableid], references: [id])
+  relationTable Table @relation("RelationTable", fields: [relationTableId], references: [id])
 
-  fieldA    Field    @relation("RelationFieldA", fields: [fieldAId], references: [id])
-  fieldB    Field    @relation("RelationFieldB", fields: [fieldBId], references: [id])
+  // fieldA    Field    @relation("RelationFieldA", fields: [fieldAId], references: [id])
+  // fieldB    Field    @relation("RelationFieldB", fields: [fieldBId], references: [id])
   createdAt DateTime @default(now())
 }

@@ -6,6 +6,10 @@ import {
 import prisma from "@/lib/db";
 import { Database } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import getModel from "@/lib/mysql/model";
+import ObjectId from "@/lib/objectId";
+import { Rethink_Sans } from "next/font/google";
+import { Model } from "sequelize";
 
 export async function GET(
   request: NextRequest,
@@ -14,10 +18,9 @@ export async function GET(
   const searchParams = request.nextUrl.searchParams;
   const limit = Number(searchParams.get("limit") || 20);
   const skip = Number(searchParams.get("skip") || 0);
-  // const databaseId = (await params).databaseId;
+  const databaseId = (await params).databaseId;
   const tableName = (await params).tableName;
 
-  // Mengambil semua query parameters
   const filters: Record<string, string> = {};
   searchParams.delete("limit");
   searchParams.delete("skip");
@@ -32,13 +35,12 @@ export async function GET(
   try {
     const table = await prisma.table.findFirst({
       include: { database: true },
-      where: { name: tableName },
+      where: { name: tableName, databaseId },
     });
     if (!table) {
       return Response.json({ message: "Table Not Found" }, { status: 404 });
     }
     const database = table.database;
-
     if (database.type == "mysql") {
       const data = await getMySQLDataByTableName(
         database,
@@ -81,9 +83,7 @@ export async function GET(
       );
     }
   }
-}
-
-const getMySQLDataByTableName = async (
+}const getMySQLDataByTableName = async (
   database: Database,
   name: string,
   limit: number = 20,
@@ -99,30 +99,80 @@ const getMySQLDataByTableName = async (
       },
     },
     select: {
+      type: true,
+      isPrimary: true,
+      table: {
+        select: {
+          relations: {
+            select: { type: true, relationTable: { select: { name: true } } },
+          },
+        },
+      },
       name: true,
     },
   });
 
-  const fields = columnsData.map((val) => val.name).join("`, `");
-  let filterConditions = "";
-  if (filters) {
-    filterConditions = Object.entries(filters)
-      .filter(([key, i]) => !!i && !!columnsData.find((col) => col.name == key))
-      .map(([key, value]) => `${key} = '${value}'`) // Menyesuaikan dengan kondisi yang diinginkan
-      .join(" AND ");
+  await connection.query(`USE ${database.name}`);
+
+  const model = await getModel(name, connection);
+
+  // Inisialisasi relasi
+  const relations: { alias: string; model: any}[] = [];
+
+  // Loop melalui kolom untuk memeriksa relasi
+  for (const col of columnsData) {
+    if (col.type === "RELATION") {
+      const columnRelations = col.table?.relations || [];
+
+      for (const relColumn of columnRelations) {
+        const targetModelName = relColumn.relationTable.name;
+        const targetModel = await getModel(targetModelName, connection);
+        
+        // Menentukan alias unik berdasarkan jenis relasi dan nama model
+        const baseAlias = `${col.name}Association`;
+        let alias = "";
+        console.log(!model.associations[alias])
+        if (relColumn.type === "ONE_TO_ONE" && !model.associations[alias]) {
+          model.belongsTo(targetModel, { foreignKey: col.name, as: `${baseAlias}One` });
+          targetModel.hasOne(model, { foreignKey: col.name, as: `${baseAlias}One` });
+          alias = `${baseAlias}One`;
+          relations.push({ model: targetModel, alias });
+        }
+         else if (relColumn.type === "ONE_TO_MANY" && !targetModel.associations[alias]) {
+          model.belongsTo(targetModel, { foreignKey: col.name, as: `${baseAlias}Many` });
+          targetModel.hasMany(model, { foreignKey: col.name, as: `${baseAlias}Many` });
+          alias = `${baseAlias}Many`;
+          relations.push({ model: targetModel, alias });
+        } else if (relColumn.type === "MANY_TO_MANY" && !model.associations[alias]) {
+          const pivotTableName = `${model.name}${targetModel.name}`;
+          model.belongsToMany(targetModel, { through: pivotTableName, foreignKey: col.name, as: `${baseAlias}ManyToMany` });
+          targetModel.belongsToMany(model, { through: pivotTableName, foreignKey: col.name, as: `${baseAlias}ManyToMany` });
+          alias = `${baseAlias}ManyToMany`;
+          relations.push({ model: targetModel, alias });
+        }
+        else{
+          relations.push({model: model.associations[alias], alias: model.associations[alias].as})
+        }
+
+      }
+    }
   }
+  console.log(relations, "relation")
 
-  // Menghindari SQL injection dengan validasi nama tabel
-  const query = `SELECT \`${fields}\` FROM  ${database.name}.\`${name}\` 
-            ${
-              filterConditions ? `WHERE ${filterConditions}` : ""
-            } LIMIT ${limit} OFFSET ${skip}`;
 
-  const [columns] = await connection.query(query);
-  // return { columns};
-  // }));
-  return columns;
+  const relatedData = await model.findAll({
+    include: relations.map((relation) => ({
+      model: relation.model,
+      as: relation.alias, 
+      required: true,
+    })),
+  });
+
+  // return relatedData;
+
+  return await model.findAll({})
 };
+
 
 const getMongoCollectionByName = async (
   database: Database,
@@ -180,15 +230,11 @@ export async function POST(
     const database = table.database;
 
     if (database.type == "mysql") {
-      await insertRecordMysql(database,tableName, req);
+      await insertRecordMysql(database, tableName, req);
 
       return Response.json(req);
     } else if (database.type == "mongodb") {
-      const result = await insertRecordMongoDD(
-        database,
-        tableName,
-        req
-      );
+      const result = await insertRecordMongoDD(database, tableName, req);
       return Response.json(result);
     }
   } catch (error: unknown) {
@@ -202,7 +248,6 @@ export async function POST(
     }
   }
 }
-// eslint-disable-next-line  @typescript-eslint/no-explicit-any
 const insertRecordMysql = async (
   database: Database,
   name: string,
@@ -219,10 +264,16 @@ const insertRecordMysql = async (
   const values = Object.values(body)
     .map((value) => `'${value}'`)
     .join(", ");
+  // const query = `INSERT INTO \`${database.name}\`.\`${name}\` (${fields}) VALUES (${values})`;
 
-  const query = `INSERT INTO \`${database.name}\`.\`${name}\` (${fields}) VALUES (${values})`;
+  await connection.query(`USE ${database.name}`);
 
-  const [result] = await connection.query(query);
+  const model = await getModel(name, connection);
+
+  const _id = ObjectId.generate();
+  const result = await model.create({ ...body, _id });
+
+  // const [result] = await connection.query(query);
 
   return result;
 };

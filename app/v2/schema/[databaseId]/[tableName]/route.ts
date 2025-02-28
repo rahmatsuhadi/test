@@ -6,8 +6,8 @@ import { connectDatabase, MongoConnection, MysqlConnection } from "../../../../.
 
  const schemaField = z.object({
   name: z.string(),
-  type: z.enum([ "STRING", "BOOLEAN", "INT"]),
-  isNull: z.boolean(),
+  type: z.enum([ "STRING", "BOOLEAN", "NUMBER"]),
+  isRequired: z.boolean(),
   isPrimary: z.boolean(),
 });
 
@@ -30,19 +30,19 @@ export async function GET(
     skip: skip,
     include:{
       table:{select:{id:true}},
-      relationsA: {
-        select:{
-          tableB:{
-            select: {name:true}
-          },
-          fieldB:{
-            select:{
-              name:true
-            }
-          },
+      // relationsA: {
+      //   select:{
+      //     tableB:{
+      //       select: {name:true}
+      //     },
+      //     fieldB:{
+      //       select:{
+      //         name:true
+      //       }
+      //     },
 
-        }
-      }
+      //   }
+      // }
     },
     orderBy: {
       isPrimary: "desc",
@@ -53,14 +53,9 @@ export async function GET(
     },
   });
 
-  const count = await prisma.field.count({ where });
+  // const count = await prisma.field.count({ where });
 
-  return Response.json({
-    data: data,
-    limit,
-    skip,
-    total: count,
-  });
+  return Response.json(data);
 }
 
 // create new Field
@@ -157,7 +152,7 @@ const createFieldMysql = async (
 
       let sqlType: string;
       switch (column.type) {
-        case "INT":
+        case "NUMBER":
           sqlType = "INT";
           break;
         case "STRING":
@@ -173,7 +168,7 @@ const createFieldMysql = async (
 
       return (
         ` ADD COLUMN  ${column.name} ${sqlType}${primaryKey}` +
-        (column.isNull ? " NULL" : " NOT NULL")
+        (!column.isRequired ? " NULL" : " NOT NULL")
       );
     })
     .join(", ");

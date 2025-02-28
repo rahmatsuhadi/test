@@ -7,15 +7,32 @@ import {
   MysqlConnection,
 } from "../../../../service/connection";
 import { Database, Field } from "@prisma/client";
+import { CustomError } from "@/types/type.error";
+import getModel from "@/lib/mysql/model";
+import { DataTypes, ModelAttributes } from "sequelize";
 
-
-
-const schemaField = z.object({
-  name: z.string(),
-  type: z.enum([ "STRING", "BOOLEAN", "INT"]),
-  isNull: z.boolean(),
-  isPrimary: z.boolean(),
-});
+const schemaField = z
+  .object({
+    name: z.string(),
+    type: z.enum(["STRING", "BOOLEAN", "NUMBER", "RELATION", "DATETIME"]),
+    isRequired: z.boolean().nullable(),
+    relationType: z.enum(["ONE_TO_ONE", "ONE_TO_MANY"]).nullable(),
+    relationTable: z.string().nullable(),
+    isPrimary: z.boolean().nullable(),
+  })
+  .refine(
+    (data) => {
+      if (data.type === "RELATION") {
+        return data.relationType !== null && data.relationTable !== null;
+      }
+      return true;
+    },
+    {
+      message:
+        "relationType and relationTable are required when type is 'RELATION'",
+      path: ["relationType", "relationTable"],
+    }
+  );
 
 const schemaTable = z.object({
   name: z.string(),
@@ -57,16 +74,19 @@ export async function POST(
     const parsedData = schemaTable.parse(res);
 
     const credential = await prisma.database.findUniqueOrThrow({
-      where: { id:databaseId },
+      where: { id: databaseId },
     });
 
-    if(credential.type=="mysql"){
-      await createTableMysql(parsedData.name, parsedData.columns, credential)
+    if (credential.type == "mysql") {
+      await createTableMysql(parsedData.name, parsedData.columns, credential);
+    } else if (credential.type == "mongodb") {
+      await createTableMongo(parsedData.name, parsedData.columns, credential);
     }
 
-    else if(credential.type=="mongodb"){
-      await createTableMongo(parsedData.name, parsedData.columns, credential)
-    }
+    const relations = parsedData.columns.filter(
+      (col) =>
+        col.type == "RELATION" && !!col.relationTable && !!col.relationType
+    );
 
     const result = await prisma.table.create({
       include: {
@@ -74,15 +94,33 @@ export async function POST(
           select: {
             name: true,
             type: true,
-            isNull: true,
+            isRequired: true,
           },
         },
       },
       data: {
         name: parsedData.name,
+        relations: {
+          createMany: {
+            data: relations.map((item) => {
+              // if(!!!item.relationTable || !!!item.relationType) return null
+              return {
+                relationTableId: item.relationTable || "",
+                type: item.relationType || "ONE_TO_ONE",
+              };
+            }),
+          },
+        },
         fields: {
           createMany: {
-            data: parsedData.columns,
+            data: parsedData.columns.map((item) => {
+              return {
+                name: item.name,
+                type: item.type,
+                isPrimary: item.isPrimary,
+                isRequired: item.isRequired,
+              };
+            }),
           },
         },
         databaseId,
@@ -98,24 +136,28 @@ export async function POST(
         },
         { status: 400 }
       );
-    }
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { message: error?.message ?? "Internal Server Error" },
-        { status: 500 }
-      );
+    } else {
+      const customError = error as CustomError;
+      console.log(customError.message);
+      if (customError.response?.data?.message) {
+        return NextResponse.json(
+          {
+            message:
+              customError.response.data.message || customError.message || "Internal Server Error",
+          },
+          { status: 500 }
+        );
+      }
     }
   }
 }
 
- const createTableMongo = async (
+const createTableMongo = async (
   tableName: string,
-  columns: Omit<Field, "id" | "createdAt" | "tableId">[],
-  database: Database,
+  columns: z.infer<typeof schemaField>[],
+  database: Database
 ) => {
-
-
-  const connection = await connectDatabase(database) as MongoConnection;
+  const connection = (await connectDatabase(database)) as MongoConnection;
 
   const mongodb = await connection.db(database.name);
 
@@ -123,7 +165,7 @@ export async function POST(
 
   for (const col of columns) {
     switch (col.type) {
-      case "INT":
+      case "NUMBER":
         dummy[col.name] = 0;
 
         break;
@@ -149,7 +191,7 @@ export async function POST(
   }
 
   const collection = await mongodb.createCollection(tableName);
-  await collection.insertOne(dummy);
+  // await collection.insertOne(dummy);
   return collection;
 };
 
@@ -169,49 +211,95 @@ export async function POST(
 //   return tableDetails;
 // };
 
+const getTableById = async (id: string) => {
+  const table = await prisma.table.findFirst({
+    where: { id: id },
+    select: {
+      name: true,
+      fields: {
+        select: {
+          isPrimary: true,
+          name: true,
+        },
+      },
+    },
+  });
+  if (!table) return null;
+  const primaryFields = table.fields.filter((field) => field.isPrimary);
+
+  return {
+    ...table,
+    fields: primaryFields,
+  };
+};
+
 const createTableMysql = async (
   tableName: string,
-  columns: Omit<Field, "id" | "createdAt" | "tableId">[],
-  database: Database,
+  columns: z.infer<typeof schemaField>[],
+  database: Database
 ) => {
+  const connection = (await connectDatabase(database)) as MysqlConnection;
 
-  
+  await connection.query(`USE ${database.name}`);
 
-  const connection = await connectDatabase(database) as MysqlConnection;
+  const queryInterface = await connection.getQueryInterface();
 
+  const tableDefinition: ModelAttributes = {
+    // id: {
+    //   type: DataTypes.STRING,
+    //   primaryKey: true,
+    // },
+  };
 
-  const columnsDefinition = columns
-    .map((column) => {
-      if (!column?.name || !column.type) {
-        throw new Error("Each column must have a fieldName and fieldType.");
+ for (const col of columns ) {
+    const dataType =
+      col.type === "RELATION"
+        ? DataTypes.STRING
+        : col.type === "DATETIME"
+        ? DataTypes.DATE
+        : DataTypes[col.type as keyof typeof DataTypes];
+
+    if (col.type == "RELATION" && col.relationTable) {
+      const relationTable = await getTableById(col.relationTable);
+      if (relationTable) {
+        tableDefinition[col.name] = {
+          type: dataType,
+          allowNull: col.isRequired !== true,
+          primaryKey: col.isPrimary || false,
+          references: {
+            model: relationTable.name,
+            key:
+              relationTable.fields.length > 0
+                ? relationTable.fields[0].name
+                : "_id",
+          },
+          onUpdate: "CASCADE",
+          onDelete: "CASCADE",
+        };
       }
+    } else {
+      tableDefinition[col.name] = {
+        type: dataType,
+        allowNull: col.isRequired !== true,
+        primaryKey: col.isPrimary || false,
+      };
+    }
+  };
 
-      let sqlType: string;
-      switch (column.type) {
-        case "INT":
-          sqlType = "INT";
-          break;
-        case "STRING":
-          sqlType = "VARCHAR(255)"; // Atau sesuaikan ukuran sesuai kebutuhan
-          break;
-        case "BOOLEAN":
-          sqlType = "BOOLEAN";
-          break;
-        default:
-          throw new Error(`Unsupported column type: ${column.type}`);
-      }
-      const primaryKey = column.isPrimary ? " PRIMARY KEY" : "";
+  console.log(tableDefinition)
+  // tableDefinition.createdAt = {
+  //   type: DataTypes.DATE,
+  //   allowNull: true,
+  //   defaultValue: DataTypes.NOW,
+  // };
 
-      return (
-        `${column.name} ${sqlType}${primaryKey}` +
-        (column.isNull ? " NULL" : " NOT NULL")
-      );
-    })
-    .join(", ");
-    
-    const query = `CREATE TABLE ${database.name}.${tableName} (${columnsDefinition})`;
+  // tableDefinition.updatedAt = {
+  //   type: DataTypes.DATE,
+  //   allowNull: true,
+  //   defaultValue: DataTypes.NOW,
+  // };
 
-  const [table] = await connection.query(query);
+  const result = await queryInterface.createTable(tableName, tableDefinition);
 
-  return table;
+  return result;
 };

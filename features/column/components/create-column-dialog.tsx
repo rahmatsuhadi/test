@@ -53,7 +53,7 @@ const formSchema = z.object({
       name: z.string().min(1, "Name is required"),
       type: z.string().min(1, "Type is required"),
       isPrimary: z.boolean(),
-      isNull: z.boolean(),
+      isRequired: z.boolean(),
     })
   ),
 });
@@ -92,7 +92,7 @@ export function CreateColumnDialog({ tableName,databaseId }: {databaseId:string,
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      fields: [{ name: "", type: "STRING", isPrimary: false, isNull: false }],
+      fields: [{ name: "", type: "STRING", isPrimary: false, isRequired: true }],
     },
   });
 
@@ -134,7 +134,7 @@ export function CreateColumnDialog({ tableName,databaseId }: {databaseId:string,
   const addField = () => {
     form.setValue("fields", [
       ...form.getValues("fields"),
-      { name: "", type: "STRING", isPrimary: false, isNull: false },
+      { name: "", type: "STRING", isPrimary: false, isRequired: true },
     ]);
   };
 
@@ -257,7 +257,7 @@ export function CreateColumnDialog({ tableName,databaseId }: {databaseId:string,
                   />
                   <FormField
                     control={form.control}
-                    {...form.register(`fields.${index}.isNull`)}
+                    {...form.register(`fields.${index}.isRequired`)}
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
@@ -268,7 +268,7 @@ export function CreateColumnDialog({ tableName,databaseId }: {databaseId:string,
                             }}
                           />
                         </FormControl>
-                        <FormLabel>isNull</FormLabel>
+                        <FormLabel>isRequired</FormLabel>
                         <FormMessage />
                       </FormItem>
                     )}

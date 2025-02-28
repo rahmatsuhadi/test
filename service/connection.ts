@@ -9,6 +9,8 @@ type DatabaseConnection = Sequelize | MongoClient;
 export type MysqlConnection = Sequelize;
 export type MongoConnection = MongoClient;
 
+const connections: { [key: string]:  DatabaseConnection} = {};    
+
 export const getDatabaseById = async (id: string) => {
   const credential = await prisma.database.findUnique({
     where: { id },
@@ -19,7 +21,7 @@ export const getDatabaseById = async (id: string) => {
 export const connectDatabase = async (
   db: Database
 ) => {
-  const connections: { [key: string]:  DatabaseConnection} = {};    
+ 
 
   if (connections[db.id]) {
     return connections[db.id];
@@ -59,5 +61,6 @@ export const connectDatabase = async (
     throw new Error("Unsupported database type");
   }
   connections[db.id] = connection;
+  console.log(Object.keys(connections))
   return connections[db.id] ;
 };

@@ -36,7 +36,6 @@ export async function POST(request: NextRequest) {
     const res = await request.json();
 
     const parsedData = schemaDatabase.parse(res);
-    console.log(parsedData)
 
 
     return Response.json({result:"OK"});
